@@ -485,8 +485,8 @@ if has_re2c():
     n.build(src('depfile_parser.cc'), 're2c', src('depfile_parser.in.cc'))
     n.build(src('lexer.cc'), 're2c', src('lexer.in.cc'))
 else:
-    print("warning: A compatible version of re2c (>= 0.11.3) was not found; "
-           "changes to src/*.in.cc will not affect your build.")
+    print("error: A compatible version of re2c (>= 0.11.3) was not found; "
+          "Build cannot proceed.")
 n.newline()
 
 n.comment('Core source files all build into ninja library.')
