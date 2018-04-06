@@ -1,12 +1,6 @@
 matrix:
   include:
     - os: linux
-      dist: precise
-      compiler: gcc
-    - os: linux
-      dist: precise
-      compiler: clang
-    - os: linux
       dist: trusty
       compiler: gcc
     - os: linux
