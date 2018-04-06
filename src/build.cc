@@ -497,12 +497,7 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, std::string* err) {
     std::vector<Node*>::iterator
         begin = item->inputs_.begin(),
         end = item->inputs_.end() - item->order_only_deps_;
-#if __cplusplus < 201703L
-#define MEM_FN std::mem_fun
-#else
-#define MEM_FN std::mem_fn  // mem_fun was removed in C++17.
-#endif
-    if (std::find_if(begin, end, MEM_FN(&Node::dirty)) == end) {
+    if (std::find_if(begin, end, std::mem_fn(&Node::dirty)) == end) {
       // Recompute most_recent_input.
       Node* most_recent_input = nullptr;
       for (std::vector<Node*>::iterator i = begin; i != end; ++i) {
@@ -1089,19 +1084,34 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     for (auto & item : deps.ins_)
     {
       uint64_t slash_bits;
-      if (!CanonicalizePath(const_cast<char*>(item.str_), &item.len_, &slash_bits,
+
+      size_t size = item.size();
+      // What the hell?
+      // Who's bright idea was it to use const_cast?
+      if (!CanonicalizePath(const_cast<char*>(item.data()),
+                            &size,
+                            &slash_bits,
                             err))
+      {
+        item = item.substr(0, size);
         return false;
+      }
+      item = item.substr(0, size);
+
       deps_nodes->push_back(state_->GetNode(item, slash_bits));
     }
 
-    if (!g_keep_depfile) {
-      if (disk_interface_->RemoveFile(depfile) < 0) {
+    if (!g_keep_depfile)
+    {
+      if (disk_interface_->RemoveFile(depfile) < 0)
+      {
         *err = std::string("deleting depfile: ") + strerror(errno) + std::string("\n");
         return false;
       }
     }
-  } else {
+  }
+  else
+  {
     Fatal("unknown deps type '%s'", deps_type.c_str());
   }
 

@@ -14,19 +14,18 @@
 
 #include <string>
 #include <vector>
-
-struct StringPiece;
+#include <string_view>
 
 /// Utility functions for normalizing include paths on Windows.
 /// TODO: this likely duplicates functionality of CanonicalizePath; refactor.
 struct IncludesNormalize final {
   /// Normalize path relative to |relative_to|.
-  IncludesNormalize(const std::string& relative_to);
+  IncludesNormalize(const std::string & relative_to);
 
   // Internal utilities made available for testing, maybe useful otherwise.
-  static std::string AbsPath(StringPiece s, std::string* err);
-  static std::string Relativize(StringPiece path,
-                                const std::vector<StringPiece>& start_list,
+  static std::string AbsPath(std::string_view s, std::string* err);
+  static std::string Relativize(std::string_view path,
+                                const std::vector<std::string_view>& start_list,
                                 std::string* err);
 
   /// Normalize by fixing slashes style, fixing redundant .. and . and makes the
@@ -36,5 +35,5 @@ struct IncludesNormalize final {
 
  private:
   std::string relative_to_;
-  std::vector<StringPiece> split_relative_to_;
+  std::vector<std::string_view> split_relative_to_;
 };

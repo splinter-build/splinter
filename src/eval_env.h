@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 
-#include "string_piece.h"
+#include <string_view>
 
 struct Rule;
 
@@ -42,8 +42,8 @@ struct EvalString final {
   void Clear() { parsed_.clear(); }
   bool empty() const { return parsed_.empty(); }
 
-  void AddText(StringPiece text);
-  void AddSpecial(StringPiece text);
+  void AddText(std::string_view text);
+  void AddSpecial(std::string_view text);
 
   /// Construct a human-readable representation of the parsed state,
   /// for use in tests.

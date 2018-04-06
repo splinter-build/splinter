@@ -308,7 +308,7 @@ else:
 if platform.is_msvc():
     cflags = ['/showIncludes',
               '/nologo',  # Don't print startup banner.
-              '/std:c++14', # Set the C++ standard to use.
+              '/std:c++17', # Set the C++ standard to use.
               '/Zi',  # Create pdb with debug info.
               '/W4',  # Highest warning level.
               '/WX',  # Warnings as errors.
@@ -334,7 +334,7 @@ if platform.is_msvc():
         cflags += ['/Ox', '/DNDEBUG', '/GL']
         ldflags += ['/LTCG', '/OPT:REF', '/OPT:ICF']
 else:
-    cflags = ['-g', '-Wall', '-Wextra', '-std=gnu++11',
+    cflags = ['-g', '-Wall', '-Wextra', '-std=gnu++17',
               '-Wno-deprecated',
               '-Wno-missing-field-initializers',
               '-Wno-unused-parameter',

@@ -475,7 +475,7 @@ struct CleanDeadTest : public CleanTest, public BuildLogUser{
   void TearDown() override final {
     unlink(kTestFilename);
   }
-  bool IsPathDead(StringPiece) const override final { return false; }
+  bool IsPathDead(std::string_view) const override final { return false; }
 };
 
 TEST_F(CleanDeadTest, CleanDead) {

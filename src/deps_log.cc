@@ -229,7 +229,7 @@ LoadStatus DepsLog::Load(const std::string& path, State* state, std::string* err
       if (buf[path_size - 1] == '\0') --path_size;
       if (buf[path_size - 1] == '\0') --path_size;
       if (buf[path_size - 1] == '\0') --path_size;
-      StringPiece subpath(buf, path_size);
+      std::string_view subpath(buf, path_size);
       // It is not necessary to pass in a correct slash_bits here. It will
       // either be a Node that's in the manifest (in which case it will already
       // have a correct slash_bits that GetNode will look up), or it is an
