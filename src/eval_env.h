@@ -29,7 +29,7 @@ struct Env {
   virtual std::string LookupVariable(const std::string& var) = 0;
 };
 
-/// A tokenized string that contains variable references.
+/// A tokenized std::string that contains variable references.
 /// Can be evaluated relative to an Env.
 struct EvalString {
   /// @return The evaluated string with variable expanded using value found in
