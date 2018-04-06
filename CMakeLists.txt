@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.15)
 project(ninja)
 
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # --- optional link-time optimization
 if(CMAKE_BUILD_TYPE MATCHES "Release")
 	include(CheckIPOSupported)

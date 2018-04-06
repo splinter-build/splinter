@@ -62,10 +62,10 @@ void WriteDepFileOrDie(const char* object_path, const CLParser& parse) {
     unlink(depfile_path.c_str());
     Fatal("writing %s", depfile_path.c_str());
   }
-  const std::set<std::string>& headers = parse.includes_;
-  for (std::set<std::string>::const_iterator i = headers.begin();
-       i != headers.end(); ++i) {
-    if (fprintf(depfile, "%s\n", EscapeForDepfile(*i).c_str()) < 0) {
+  for (const auto & header : parse.includes_)
+  {
+    if (fprintf(depfile, "%s\n", EscapeForDepfile(header).c_str()) < 0)
+    {
       unlink(object_path);
       fclose(depfile);
       unlink(depfile_path.c_str());
