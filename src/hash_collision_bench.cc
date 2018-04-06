@@ -15,6 +15,7 @@
 #include "build_log.h"
 
 #include <algorithm>
+#include <cstring>
 
 #include <stdlib.h>
 #include <time.h>
