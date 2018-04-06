@@ -329,8 +329,10 @@ bool DepsLog::Recompact(const std::string& path, std::string* err) {
 
   // Clear all known ids so that new ones can be reassigned.  The new indices
   // will refer to the ordering in new_log, not in the current log.
-  for (std::vector<Node*>::iterator i = nodes_.begin(); i != nodes_.end(); ++i)
-    (*i)->set_id(-1);
+  for (const auto & item : nodes_)
+  {
+    item->set_id(-1);
+  }
 
   // Write out all deps again.
   for (int old_id = 0; old_id < (int)deps_.size(); ++old_id) {

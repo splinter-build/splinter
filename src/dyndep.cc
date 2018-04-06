@@ -41,9 +41,7 @@ bool DyndepLoader::LoadDyndeps(Node* node, DyndepFile* ddf,
 
   // Update each edge that specified this node as its dyndep binding.
   std::vector<Edge*> const& out_edges = node->out_edges();
-  for (std::vector<Edge*>::const_iterator oe = out_edges.begin();
-       oe != out_edges.end(); ++oe) {
-    Edge* const edge = *oe;
+  for (auto const& edge : out_edges) {
     if (edge->dyndep_ != node)
       continue;
 
@@ -63,10 +61,9 @@ bool DyndepLoader::LoadDyndeps(Node* node, DyndepFile* ddf,
   }
 
   // Reject extra outputs in dyndep file.
-  for (DyndepFile::const_iterator oe = ddf->begin(); oe != ddf->end();
-       ++oe) {
-    if (!oe->second.used_) {
-      Edge* const edge = oe->first;
+  for (auto const& item : *ddf) {
+    if (!item.second.used_) {
+      Edge* const edge = item.first;
       *err = ("dyndep file '" + node->path() + "' mentions output "
               "'" + edge->outputs_[0]->path() + "' whose build statement "
               "does not have a dyndep binding for the file");

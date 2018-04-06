@@ -157,9 +157,9 @@ bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
                              TimeStamp mtime) {
   std::string command = edge->EvaluateCommand(true);
   uint64_t command_hash = LogEntry::HashCommand(command);
-  for (std::vector<Node*>::iterator out = edge->outputs_.begin();
-       out != edge->outputs_.end(); ++out) {
-    const std::string& path = (*out)->path();
+  for (const auto & item : edge->outputs_)
+  {
+    const std::string& path = item->path();
     Entries::iterator i = entries_.find(path);
     LogEntry* log_entry;
     if (i != entries_.end()) {
@@ -389,13 +389,14 @@ bool BuildLog::Recompact(const std::string& path, const BuildLogUser& user,
   }
 
   std::vector<StringPiece> dead_outputs;
-  for (Entries::iterator i = entries_.begin(); i != entries_.end(); ++i) {
-    if (user.IsPathDead(i->first)) {
-      dead_outputs.push_back(i->first);
+  for (const auto & item : entries_)
+  {
+    if (user.IsPathDead(item.first)) {
+      dead_outputs.push_back(item.first);
       continue;
     }
 
-    if (!WriteEntry(f, *i->second)) {
+    if (!WriteEntry(f, *(item.second))) {
       *err = strerror(errno);
       fclose(f);
       return false;

@@ -320,8 +320,8 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
 
   ASSERT_FALSE(plan_.FindWork());
 
-  for (std::deque<Edge*>::iterator it = edges.begin(); it != edges.end(); ++it) {
-    plan_.EdgeFinished(*it, Plan::kEdgeSucceeded, &err);
+  for (auto const& item : edges) {
+    plan_.EdgeFinished(item, Plan::kEdgeSucceeded, &err);
     ASSERT_EQ("", err);
   }
 
@@ -585,9 +585,9 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
       edge->rule().name() == "touch" ||
       edge->rule().name() == "touch-interrupt" ||
       edge->rule().name() == "touch-fail-tick2") {
-    for (std::vector<Node*>::iterator out = edge->outputs_.begin();
-         out != edge->outputs_.end(); ++out) {
-      fs_->Create((*out)->path(), "");
+    for (const auto & item : edge->outputs_)
+    {
+      fs_->Create(item->path(), "");
     }
   } else if (edge->rule().name() == "true" ||
              edge->rule().name() == "fail" ||
@@ -655,10 +655,9 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
   const std::string& verify_active_edge = edge->GetBinding("verify_active_edge");
   if (!verify_active_edge.empty()) {
     bool verify_active_edge_found = false;
-    for (std::vector<Edge*>::iterator i = active_edges_.begin();
-         i != active_edges_.end(); ++i) {
-      if ((*i)->outputs_.size() >= 1 &&
-          (*i)->outputs_[0]->path() == verify_active_edge) {
+    for (auto const& item : active_edges_) {
+      if (item->outputs_.size() >= 1 &&
+          item->outputs_[0]->path() == verify_active_edge) {
         verify_active_edge_found = true;
       }
     }
