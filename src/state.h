@@ -19,10 +19,10 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "eval_env.h"
 #include "graph.h"
-#include "hash_map.h"
 #include "util.h"
 
 struct Edge;
@@ -122,7 +122,7 @@ struct State {
   std::vector<Node*> DefaultNodes(std::string* error) const;
 
   /// Mapping of path -> Node.
-  typedef ExternalStringHashMap<Node*>::Type Paths;
+  using Paths = std::unordered_map<StringPiece, Node*>;
   Paths paths_;
 
   /// All the pools used in the graph.
