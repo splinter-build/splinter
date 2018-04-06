@@ -95,9 +95,9 @@ bool DependencyScan::RecomputeDirty(Node* node, std::vector<Node*>* stack,
   }
 
   // Load output mtimes so we can compare them to the most recent input below.
-  for (std::vector<Node*>::iterator o = edge->outputs_.begin();
-       o != edge->outputs_.end(); ++o) {
-    if (!(*o)->StatIfNecessary(disk_interface_, err))
+  for (const auto & item : edge->outputs_)
+  {
+    if (!item->StatIfNecessary(disk_interface_, err))
       return false;
   }
 
@@ -148,10 +148,10 @@ bool DependencyScan::RecomputeDirty(Node* node, std::vector<Node*>* stack,
       return false;
 
   // Finally, visit each output and update their dirty state if necessary.
-  for (std::vector<Node*>::iterator o = edge->outputs_.begin();
-       o != edge->outputs_.end(); ++o) {
+  for (const auto & item : edge->outputs_)
+  {
     if (dirty)
-      (*o)->MarkDirty();
+      item->MarkDirty();
   }
 
   // If an edge is dirty, its outputs are normally not ready.  (It's
@@ -214,9 +214,10 @@ bool DependencyScan::VerifyDAG(Node* node, std::vector<Node*>* stack, std::strin
 bool DependencyScan::RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,
                                            bool* outputs_dirty, std::string* err) {
   std::string command = edge->EvaluateCommand(/*incl_rsp_file=*/true);
-  for (std::vector<Node*>::iterator o = edge->outputs_.begin();
-       o != edge->outputs_.end(); ++o) {
-    if (RecomputeOutputDirty(edge, most_recent_input, command, *o)) {
+  for (const auto & item : edge->outputs_)
+  {
+    if (RecomputeOutputDirty(edge, most_recent_input, command, item))
+    {
       *outputs_dirty = true;
       return true;
     }
@@ -313,9 +314,9 @@ bool DependencyScan::LoadDyndeps(Node* node, DyndepFile* ddf,
 }
 
 bool Edge::AllInputsReady() const {
-  for (std::vector<Node*>::const_iterator i = inputs_.begin();
-       i != inputs_.end(); ++i) {
-    if ((*i)->in_edge() && !(*i)->in_edge()->outputs_ready())
+  for (const auto & item : inputs_)
+  {
+    if (item->in_edge() && !item->in_edge()->outputs_ready())
       return false;
   }
   return true;
@@ -431,16 +432,25 @@ std::string Edge::GetUnescapedRspfile() const {
   return env.LookupVariable("rspfile");
 }
 
-void Edge::Dump(const char* prefix) const {
+void Edge::Dump(const char* prefix) const
+{
   printf("%s[ ", prefix);
-  for (std::vector<Node*>::const_iterator i = inputs_.begin();
-       i != inputs_.end() && *i != NULL; ++i) {
-    printf("%s ", (*i)->path().c_str());
+  for(auto const& in : inputs_)
+  {
+    if(in == NULL)
+    {
+      break;
+    }
+    printf("%s ", in->path().c_str());
   }
   printf("--%s-> ", rule_->name().c_str());
-  for (std::vector<Node*>::const_iterator i = outputs_.begin();
-       i != outputs_.end() && *i != NULL; ++i) {
-    printf("%s ", (*i)->path().c_str());
+  for(auto const& out : outputs_)
+  {
+    if(out == NULL)
+    {
+      break;
+    }
+    printf("%s ", out->path().c_str());
   }
   if (pool_) {
     if (!pool_->name().empty()) {
@@ -494,9 +504,13 @@ void Node::Dump(const char* prefix) const {
     printf("no in-edge\n");
   }
   printf(" out edges:\n");
-  for (std::vector<Edge*>::const_iterator e = out_edges().begin();
-       e != out_edges().end() && *e != NULL; ++e) {
-    (*e)->Dump(" +- ");
+  for(auto const& out : out_edges())
+  {
+    if(out == NULL)
+    {
+       break;
+    }
+    out->Dump(" +- ");
   }
 }
 
@@ -597,17 +611,17 @@ bool ImplicitDepLoader::ProcessDepfileDeps(
       PreallocateSpace(edge, depfile_ins->size());
 
   // Add all its in-edges.
-  for (std::vector<StringPiece>::iterator i = depfile_ins->begin();
-       i != depfile_ins->end(); ++i, ++implicit_dep) {
+  for(auto & dep : depfile_ins) {
     uint64_t slash_bits;
-    if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits,
+    if (!CanonicalizePath(const_cast<char*>(dep.str_), &dep.len_, &slash_bits,
                           err))
       return false;
 
-    Node* node = state_->GetNode(*i, slash_bits);
+    Node* node = state_->GetNode(dep, slash_bits);
     *implicit_dep = node;
     node->AddOutEdge(edge);
     CreatePhonyInEdge(node);
+    ++implicit_dep;
   }
 
   return true;

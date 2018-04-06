@@ -52,11 +52,10 @@ void Pool::RetrieveReadyEdges(EdgeSet* ready_queue) {
 
 void Pool::Dump() const {
   printf("%s (%d/%d) ->\n", name_.c_str(), current_use_, depth_);
-  for (DelayedEdges::const_iterator it = delayed_.begin();
-       it != delayed_.end(); ++it)
+  for (const auto & item : delayed_)
   {
     printf("\t");
-    (*it)->Dump();
+    item->Dump();
   }
 }
 
@@ -115,12 +114,13 @@ Node* State::SpellcheckNode(const std::string& path) {
 
   int min_distance = kMaxValidEditDistance + 1;
   Node* result = NULL;
-  for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
-    int distance = EditDistance(
-        i->first, path, kAllowReplacements, kMaxValidEditDistance);
-    if (distance < min_distance && i->second) {
+  for (const auto & item : paths_)
+  {
+    int distance = EditDistance(item.first, path, kAllowReplacements, kMaxValidEditDistance);
+    if (distance < min_distance && item.second)
+    {
       min_distance = distance;
-      result = i->second;
+      result = item.second;
     }
   }
   return result;
@@ -154,12 +154,14 @@ bool State::AddDefault(StringPiece path, std::string* err) {
 std::vector<Node*> State::RootNodes(std::string* err) const {
   std::vector<Node*> root_nodes;
   // Search for nodes with no output.
-  for (std::vector<Edge*>::const_iterator e = edges_.begin();
-       e != edges_.end(); ++e) {
-    for (std::vector<Node*>::const_iterator out = (*e)->outputs_.begin();
-         out != (*e)->outputs_.end(); ++out) {
-      if ((*out)->out_edges().empty())
-        root_nodes.push_back(*out);
+  for (const auto & edge : edges_)
+  {
+    for (const auto & output : edge->outputs_)
+    {
+      if (output->out_edges().empty())
+      {
+        root_nodes.push_back(output);
+      }
     }
   }
 
@@ -174,31 +176,38 @@ std::vector<Node*> State::DefaultNodes(std::string* err) const {
 }
 
 void State::Reset() {
-  for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i)
-    i->second->ResetState();
-  for (std::vector<Edge*>::iterator e = edges_.begin(); e != edges_.end(); ++e) {
-    (*e)->outputs_ready_ = false;
-    (*e)->deps_loaded_ = false;
-    (*e)->mark_ = Edge::VisitNone;
+  for (const auto & path : paths_)
+  {
+    path.second->ResetState();
+  }
+  for (const auto & edge : edges_)
+  {
+    edge->outputs_ready_ = false;
+    edge->deps_loaded_ = false;
+    edge->mark_ = Edge::VisitNone;
   }
 }
 
 void State::Dump() {
-  for (Paths::iterator i = paths_.begin(); i != paths_.end(); ++i) {
-    Node* node = i->second;
+  for (const auto & path : paths_)
+  {
+    Node* node = path.second;
     printf("%s %s [id:%d]\n",
            node->path().c_str(),
-           node->status_known() ? (node->dirty() ? "dirty" : "clean")
-                                : "unknown",
+           node->status_known()
+            ? (  node->dirty()
+               ? "dirty"
+               : "clean")
+            : "unknown",
            node->id());
   }
   if (!pools_.empty()) {
     printf("resource_pools:\n");
-    for (std::map<std::string, Pool*>::const_iterator it = pools_.begin();
-         it != pools_.end(); ++it)
+    for (const auto & pool : pools_)
     {
-      if (!it->second->name().empty()) {
-        it->second->Dump();
+      if (!pool.second->name().empty())
+      {
+        pool.second->Dump();
       }
     }
   }

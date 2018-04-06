@@ -263,15 +263,15 @@ static inline bool IsKnownWin32SafeCharacter(char ch) {
 }
 
 static inline bool StringNeedsShellEscaping(const std::string& input) {
-  for (size_t i = 0; i < input.size(); ++i) {
-    if (!IsKnownShellSafeCharacter(input[i])) return true;
+  for (auto const& item : input) {
+    if (!IsKnownShellSafeCharacter(item)) return true;
   }
   return false;
 }
 
 static inline bool StringNeedsWin32Escaping(const std::string& input) {
-  for (size_t i = 0; i < input.size(); ++i) {
-    if (!IsKnownWin32SafeCharacter(input[i])) return true;
+  for (auto const& item : input) {
+    if (!IsKnownWin32SafeCharacter(item)) return true;
   }
   return false;
 }
@@ -422,13 +422,13 @@ const char* SpellcheckStringV(const std::string& text,
 
   int min_distance = kMaxValidEditDistance + 1;
   const char* result = NULL;
-  for (std::vector<const char*>::const_iterator i = words.begin();
-       i != words.end(); ++i) {
-    int distance = EditDistance(*i, text, kAllowReplacements,
+  for (const auto & item : words)
+  {
+    int distance = EditDistance(item, text, kAllowReplacements,
                                 kMaxValidEditDistance);
     if (distance < min_distance) {
       min_distance = distance;
-      result = *i;
+      result = item;
     }
   }
   return result;

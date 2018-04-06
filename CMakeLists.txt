@@ -5,6 +5,10 @@ include(CheckIPOSupported)
 
 project(ninja)
 
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # --- optional link-time optimization
 check_ipo_supported(RESULT lto_supported OUTPUT error)
 
