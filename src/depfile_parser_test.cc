@@ -17,19 +17,19 @@
 #include "test.h"
 
 struct DepfileParserTest : public testing::Test {
-  bool Parse(const char* input, string* err);
+  bool Parse(const char* input, std::string* err);
 
   DepfileParser parser_;
-  string input_;
+  std::string input_;
 };
 
-bool DepfileParserTest::Parse(const char* input, string* err) {
+bool DepfileParserTest::Parse(const char* input, std::string* err) {
   input_ = input;
   return parser_.Parse(&input_, err);
 }
 
 TEST_F(DepfileParserTest, Basic) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse(
 "build/ninja.o: ninja.cc ninja.h eval_env.h manifest_parser.h\n",
       &err));
@@ -39,7 +39,7 @@ TEST_F(DepfileParserTest, Basic) {
 }
 
 TEST_F(DepfileParserTest, EarlyNewlineAndWhitespace) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse(
 " \\\n"
 "  out: in\n",
@@ -48,7 +48,7 @@ TEST_F(DepfileParserTest, EarlyNewlineAndWhitespace) {
 }
 
 TEST_F(DepfileParserTest, Continuation) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse(
 "foo.o: \\\n"
 "  bar.h baz.h\n",
@@ -59,7 +59,7 @@ TEST_F(DepfileParserTest, Continuation) {
 }
 
 TEST_F(DepfileParserTest, CarriageReturnContinuation) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse(
 "foo.o: \\\r\n"
 "  bar.h baz.h\r\n",
@@ -70,7 +70,7 @@ TEST_F(DepfileParserTest, CarriageReturnContinuation) {
 }
 
 TEST_F(DepfileParserTest, BackSlashes) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse(
 "Project\\Dir\\Build\\Release8\\Foo\\Foo.res : \\\n"
 "  Dir\\Library\\Foo.rc \\\n"
@@ -85,7 +85,7 @@ TEST_F(DepfileParserTest, BackSlashes) {
 }
 
 TEST_F(DepfileParserTest, Spaces) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse(
 "a\\ bc\\ def:   a\\ b c d",
       &err));
@@ -106,7 +106,7 @@ TEST_F(DepfileParserTest, MultipleBackslashes) {
   // backslashes and the space. A single backslash before hash sign is removed.
   // Other backslashes remain untouched (including 2N backslashes followed by
   // space).
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse(
 "a\\ b\\#c.h: \\\\\\\\\\  \\\\\\\\ \\\\share\\info\\\\#1",
       &err));
@@ -125,7 +125,7 @@ TEST_F(DepfileParserTest, MultipleBackslashes) {
 TEST_F(DepfileParserTest, Escapes) {
   // Put backslashes before a variety of characters, see which ones make
   // it through.
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse(
 "\\!\\@\\#$$\\%\\^\\&\\[\\]\\\\:",
       &err));
@@ -138,7 +138,7 @@ TEST_F(DepfileParserTest, Escapes) {
 TEST_F(DepfileParserTest, SpecialChars) {
   // See filenames like istreambuf.iterator_op!= in
   // https://github.com/google/libcxx/tree/master/test/iterators/stream.iterators/istreambuf.iterator/
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse(
 "C:/Program\\ Files\\ (x86)/Microsoft\\ crtdefs.h: \\\n"
 " en@quot.header~ t+t-x!=1 \\\n"
@@ -164,7 +164,7 @@ TEST_F(DepfileParserTest, SpecialChars) {
 
 TEST_F(DepfileParserTest, UnifyMultipleOutputs) {
   // check that multiple duplicate targets are properly unified
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse("foo foo: x y z", &err));
   ASSERT_EQ("foo", parser_.out_.AsString());
   ASSERT_EQ(3u, parser_.ins_.size());
@@ -175,13 +175,13 @@ TEST_F(DepfileParserTest, UnifyMultipleOutputs) {
 
 TEST_F(DepfileParserTest, RejectMultipleDifferentOutputs) {
   // check that multiple different outputs are rejected by the parser
-  string err;
+  std::string err;
   EXPECT_FALSE(Parse("foo bar: x y z", &err));
   ASSERT_EQ("depfile has multiple output paths", err);
 }
 
 TEST_F(DepfileParserTest, MultipleEmptyRules) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse("foo: x\n"
                     "foo: \n"
                     "foo:\n", &err));
@@ -191,7 +191,7 @@ TEST_F(DepfileParserTest, MultipleEmptyRules) {
 }
 
 TEST_F(DepfileParserTest, UnifyMultipleRulesLF) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse("foo: x\n"
                     "foo: y\n"
                     "foo \\\n"
@@ -204,7 +204,7 @@ TEST_F(DepfileParserTest, UnifyMultipleRulesLF) {
 }
 
 TEST_F(DepfileParserTest, UnifyMultipleRulesCRLF) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse("foo: x\r\n"
                     "foo: y\r\n"
                     "foo \\\r\n"
@@ -217,7 +217,7 @@ TEST_F(DepfileParserTest, UnifyMultipleRulesCRLF) {
 }
 
 TEST_F(DepfileParserTest, UnifyMixedRulesLF) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse("foo: x\\\n"
                     "     y\n"
                     "foo \\\n"
@@ -230,7 +230,7 @@ TEST_F(DepfileParserTest, UnifyMixedRulesLF) {
 }
 
 TEST_F(DepfileParserTest, UnifyMixedRulesCRLF) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse("foo: x\\\r\n"
                     "     y\r\n"
                     "foo \\\r\n"
@@ -243,7 +243,7 @@ TEST_F(DepfileParserTest, UnifyMixedRulesCRLF) {
 }
 
 TEST_F(DepfileParserTest, IndentedRulesLF) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse(" foo: x\n"
                     " foo: y\n"
                     " foo: z\n", &err));
@@ -255,7 +255,7 @@ TEST_F(DepfileParserTest, IndentedRulesLF) {
 }
 
 TEST_F(DepfileParserTest, IndentedRulesCRLF) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse(" foo: x\r\n"
                     " foo: y\r\n"
                     " foo: z\r\n", &err));
@@ -267,7 +267,7 @@ TEST_F(DepfileParserTest, IndentedRulesCRLF) {
 }
 
 TEST_F(DepfileParserTest, TolerateMP) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse("foo: x y z\n"
                     "x:\n"
                     "y:\n"
@@ -280,7 +280,7 @@ TEST_F(DepfileParserTest, TolerateMP) {
 }
 
 TEST_F(DepfileParserTest, MultipleRulesTolerateMP) {
-  string err;
+  std::string err;
   EXPECT_TRUE(Parse("foo: x\n"
                     "x:\n"
                     "foo: y\n"
@@ -301,8 +301,8 @@ TEST_F(DepfileParserTest, MultipleRulesRejectDifferentOutputs) {
   parser_opts.depfile_distinct_target_lines_action_ =
       kDepfileDistinctTargetLinesActionError;
   DepfileParser parser(parser_opts);
-  string err;
-  string input =
+  std::string err;
+  std::string input =
       "foo: x y\n"
       "bar: y z\n";
   EXPECT_FALSE(parser.Parse(&input, &err));
