@@ -22,10 +22,12 @@
 #include "graph.h"
 #include "util.h"
 #include "test.h"
+#include <algorithm>
+#include <cstring>
 
 namespace {
 
-const char kTestFilename[] = "DepsLogTest-tempfile";
+static constexpr const char * kTestFilename = "DepsLogTest-tempfile";
 
 struct DepsLogTest : public testing::Test {
   virtual void SetUp() {
