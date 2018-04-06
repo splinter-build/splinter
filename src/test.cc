@@ -111,29 +111,30 @@ void AssertHash(const char* expected, uint64_t actual) {
 }
 
 void VerifyGraph(const State& state) {
-  for (std::vector<Edge*>::const_iterator e = state.edges_.begin();
-       e != state.edges_.end(); ++e) {
+  for (const auto & edge : state.edges_)
+  {
     // All edges need at least one output.
-    EXPECT_FALSE((*e)->outputs_.empty());
+    EXPECT_FALSE(edge->outputs_.empty());
+
     // Check that the edge's inputs have the edge as out-edge.
-    for (std::vector<Node*>::const_iterator in_node = (*e)->inputs_.begin();
-         in_node != (*e)->inputs_.end(); ++in_node) {
-      const std::vector<Edge*>& out_edges = (*in_node)->out_edges();
-      EXPECT_NE(find(out_edges.begin(), out_edges.end(), *e),
-                out_edges.end());
+    for (const auto & in_node : edge->inputs_)
+    {
+      const auto & out_edges = in_node->out_edges();
+      EXPECT_NE(find(out_edges.begin(), out_edges.end(), edge), out_edges.end());
     }
+
     // Check that the edge's outputs have the edge as in-edge.
-    for (std::vector<Node*>::const_iterator out_node = (*e)->outputs_.begin();
-         out_node != (*e)->outputs_.end(); ++out_node) {
-      EXPECT_EQ((*out_node)->in_edge(), *e);
+    for (const auto & out_node : edge->outputs_)
+    {
+      EXPECT_EQ(out_node->in_edge(), edge);
     }
   }
 
   // The union of all in- and out-edges of each nodes should be exactly edges_.
   std::set<const Edge*> node_edge_set;
-  for (State::Paths::const_iterator p = state.paths_.begin();
-       p != state.paths_.end(); ++p) {
-    const Node* n = p->second;
+  for (const auto & item : state.paths_)
+  {
+    const Node* n = item.second;
     if (n->in_edge())
       node_edge_set.insert(n->in_edge());
     node_edge_set.insert(n->out_edges().begin(), n->out_edges().end());

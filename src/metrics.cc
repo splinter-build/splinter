@@ -103,16 +103,15 @@ Metric* Metrics::NewMetric(const std::string& name) {
 
 void Metrics::Report() {
   size_t width = 0;
-  for (std::vector<Metric*>::iterator i = metrics_.begin();
-       i != metrics_.end(); ++i) {
-    width = std::max((*i)->name.size(), width);
+  for (const auto & metric : metrics_)
+  {
+    width = std::max(metric->name.size(), width);
   }
 
   printf("%-*s\t%-6s\t%-9s\t%s\n", (int)width,
          "metric", "count", "avg (us)", "total (ms)");
-  for (std::vector<Metric*>::iterator i = metrics_.begin();
-       i != metrics_.end(); ++i) {
-    Metric* metric = *i;
+  for (const auto & metric : metrics_)
+  {
     double total = metric->sum / (double)1000;
     double avg = metric->sum / (double)metric->count;
     printf("%-*s\t%-6d\t%-8.1f\t%.1f\n", (int)width, metric->name.c_str(),

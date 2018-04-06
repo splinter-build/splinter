@@ -333,7 +333,7 @@ if platform.is_msvc():
         cflags += ['/Ox', '/DNDEBUG', '/GL']
         ldflags += ['/LTCG', '/OPT:REF', '/OPT:ICF']
 else:
-    cflags = ['-g', '-Wall', '-Wextra',
+    cflags = ['-g', '-Wall', '-Wextra', '-std=gnu++11',
               '-Wno-deprecated',
               '-Wno-missing-field-initializers',
               '-Wno-unused-parameter',

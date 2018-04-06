@@ -200,8 +200,8 @@ bool DyndepParser::ParseEdge(std::string* err) {
   }
 
   dyndeps->implicit_inputs_.reserve(ins.size());
-  for (std::vector<EvalString>::iterator i = ins.begin(); i != ins.end(); ++i) {
-    std::string path = i->Evaluate(&env_);
+  for (auto const& item : ins) {
+    std::string path = item.Evaluate(&env_);
     std::string path_err;
     uint64_t slash_bits;
     if (!CanonicalizePath(&path, &slash_bits, &path_err))
@@ -210,9 +210,8 @@ bool DyndepParser::ParseEdge(std::string* err) {
     dyndeps->implicit_inputs_.push_back(n);
   }
 
-  dyndeps->implicit_outputs_.reserve(outs.size());
-  for (std::vector<EvalString>::iterator i = outs.begin(); i != outs.end(); ++i) {
-    std::string path = i->Evaluate(&env_);
+  for (auto const& item : outs) {
+    std::string path = item.Evaluate(&env_);
     std::string path_err;
     uint64_t slash_bits;
     if (!CanonicalizePath(&path, &slash_bits, &path_err))
