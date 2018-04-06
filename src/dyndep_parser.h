@@ -26,13 +26,13 @@ struct DyndepParser: public Parser {
   DyndepParser(State* state, FileReader* file_reader,
                DyndepFile* dyndep_file);
 
-  /// Parse a text string of input.  Used by tests.
+  /// Parse a text std::string of input.  Used by tests.
   bool ParseTest(const std::string& input, std::string* err) {
     return Parse("input", input, err);
   }
 
 private:
-  /// Parse a file, given its contents as a string.
+  /// Parse a file, given its contents as a std::string.
   bool Parse(const std::string& filename, const std::string& input,
              std:: string* err);
 
