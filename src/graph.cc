@@ -14,6 +14,7 @@
 
 #include "graph.h"
 
+#include <algorithm>
 #include <assert.h>
 #include <stdio.h>
 

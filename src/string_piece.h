@@ -67,4 +67,15 @@ struct StringPiece {
   size_t len_;
 };
 
+namespace std
+{
+    template <> struct hash<StringPiece>
+    {
+        size_t operator()(StringPiece x) const
+        {
+            return hash<std::string>()(std::string(x.str_, x.len_));
+        }
+    };
+}
+
 #endif  // NINJA_STRINGPIECE_H_

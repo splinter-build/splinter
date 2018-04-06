@@ -18,7 +18,9 @@
 #include <string>
 #include <stdio.h>
 
-#include "hash_map.h"
+#include <unordered_map>
+
+#include "string_piece.h"
 #include "timestamp.h"
 #include "util.h"  // uint64_t
 
@@ -80,7 +82,7 @@ struct BuildLog {
   /// Rewrite the known log entries, throwing away old data.
   bool Recompact(const std::string& path, const BuildLogUser& user, std::string* err);
 
-  typedef ExternalStringHashMap<LogEntry*>::Type Entries;
+  using Entries = std::unordered_map<StringPiece, LogEntry*>;
   const Entries& entries() const { return entries_; }
 
  private:
