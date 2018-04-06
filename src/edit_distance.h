@@ -15,10 +15,10 @@
 #ifndef NINJA_EDIT_DISTANCE_H_
 #define NINJA_EDIT_DISTANCE_H_
 
-#include "string_piece.h"
+#include <string_view>
 
-int EditDistance(const StringPiece& s1,
-                 const StringPiece& s2,
+int EditDistance(std::string_view s1,
+                 std::string_view s2,
                  bool allow_replacements = true,
                  int max_edit_distance = 0);
 

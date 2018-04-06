@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 
-#include "string_piece.h"
+#include <string_view>
 
 struct Rule;
 
@@ -42,8 +42,8 @@ struct EvalString final {
   void Clear() { parsed_.clear(); }
   bool empty() const { return parsed_.empty(); }
 
-  void AddText(StringPiece text);
-  void AddSpecial(StringPiece text);
+  void AddText(std::string_view text);
+  void AddSpecial(std::string_view text);
 
   /// Construct a human-readable representation of the parsed state,
   /// for use in tests.
@@ -97,8 +97,7 @@ struct BindingEnv final : public Env {
   /// 2) value set on rule, with expansion in the edge's scope
   /// 3) value set on enclosing scope of edge (edge_->env_->parent_)
   /// This function takes as parameters the necessary info to do (2).
-  std::string LookupWithFallback(const std::string& var, const EvalString* eval,
-                            Env* env);
+  std::string LookupWithFallback(const std::string& var, const EvalString* eval, Env* env);
 
 private:
   std::map<std::string, std::string> bindings_;

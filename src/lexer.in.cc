@@ -22,8 +22,8 @@
 bool Lexer::Error(const std::string& message, std::string* err) {
   // Compute line/column.
   int line = 1;
-  const char* line_start = input_.str_;
-  for (const char* p = input_.str_; p < last_token_; ++p) {
+  const char* line_start = input_.data();
+  for (const char* p = input_.data(); p < last_token_; ++p) {
     if (*p == '\n') {
       ++line;
       line_start = p + 1;
@@ -32,7 +32,7 @@ bool Lexer::Error(const std::string& message, std::string* err) {
   int col = last_token_ ? (int)(last_token_ - line_start) : 0;
 
   char buf[1024];
-  snprintf(buf, sizeof(buf), "%s:%d: ", filename_.AsString().c_str(), line);
+  snprintf(buf, sizeof(buf), "%s:%d: ", std::string(filename_).c_str(), line);
   *err = buf;
   *err += message + "\n";
 
@@ -62,10 +62,10 @@ Lexer::Lexer(const char* input) {
   Start("input", input);
 }
 
-void Lexer::Start(StringPiece filename, StringPiece input) {
+void Lexer::Start(std::string_view filename, std::string_view input) {
   filename_ = filename;
   input_ = input;
-  ofs_ = input_.str_;
+  ofs_ = input_.data();
   last_token_ = nullptr;
 }
 
@@ -210,7 +210,7 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, std::string* err) {
     start = p;
     /*!re2c
     [^$ :\r\n|\000]+ {
-      eval->AddText(StringPiece(start, p - start));
+      eval->AddText(std::string_view(start, p - start));
       continue;
     }
     "\r\n" {
@@ -225,16 +225,16 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, std::string* err) {
       } else {
         if (*start == '\n')
           break;
-        eval->AddText(StringPiece(start, 1));
+        eval->AddText(std::string_view(start, 1));
         continue;
       }
     }
     "$$" {
-      eval->AddText(StringPiece("$", 1));
+      eval->AddText(std::string_view("$", 1));
       continue;
     }
     "$ " {
-      eval->AddText(StringPiece(" ", 1));
+      eval->AddText(std::string_view(" ", 1));
       continue;
     }
     "$\r\n"[ ]* {
@@ -244,15 +244,15 @@ bool Lexer::ReadEvalString(EvalString* eval, bool path, std::string* err) {
       continue;
     }
     "${"varname"}" {
-      eval->AddSpecial(StringPiece(start + 2, p - start - 3));
+      eval->AddSpecial(std::string_view(start + 2, p - start - 3));
       continue;
     }
     "$"simple_varname {
-      eval->AddSpecial(StringPiece(start + 1, p - start - 1));
+      eval->AddSpecial(std::string_view(start + 1, p - start - 1));
       continue;
     }
     "$:" {
-      eval->AddText(StringPiece(":", 1));
+      eval->AddText(std::string_view(":", 1));
       continue;
     }
     "$". {

@@ -130,7 +130,7 @@ int Cleaner::CleanDead(const BuildLog::Entries& entries) {
   for (const auto& entry : entries) {
     Node* n = state_->LookupNode(entry.first);
     if (!n || !n->in_edge()) {
-      Remove(entry.first.AsString());
+      Remove(std::string(entry.first));
     }
   }
   PrintFooter();

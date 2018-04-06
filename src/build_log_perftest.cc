@@ -29,7 +29,7 @@
 const char kTestFilename[] = "BuildLogPerfTest-tempfile";
 
 struct NoDeadPaths : public BuildLogUser {
-  bool IsPathDead(StringPiece) const override final { return false; }
+  bool IsPathDead(std::string_view) const override final { return false; }
 };
 
 bool WriteTestData(std::string* err) {

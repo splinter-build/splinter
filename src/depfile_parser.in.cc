@@ -160,18 +160,18 @@ bool DepfileParser::Parse(std::string* content, std::string* err) {
       */
     }
 
-    int len = (int)(out - filename);
+    size_t len = static_cast<size_t>(out - filename);
     const bool is_dependency = !parsing_targets;
-    if (len > 0 && filename[len - 1] == ':') {
+    if (len > 0u && filename[len - 1] == ':') {
       len--;  // Strip off trailing colon, if any.
       parsing_targets = false;
       have_target = true;
     }
 
-    if (len > 0) {
-      StringPiece piece = StringPiece(filename, len);
+    if (len > 0u) {
+      std::string_view piece{filename, len};
       // If we've seen this as an input before, skip it.
-      std::vector<StringPiece>::iterator pos = std::find(ins_.begin(), ins_.end(), piece);
+      std::vector<std::string_view>::iterator pos = std::find(ins_.begin(), ins_.end(), piece);
       if (pos == ins_.end()) {
         if (is_dependency) {
           if (poisoned_input) {
