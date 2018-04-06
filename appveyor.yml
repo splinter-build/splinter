@@ -1,8 +1,8 @@
 version: 1.0.{build}
 image:
-  - Visual Studio 2017
   - Ubuntu1604
   - Ubuntu1804
+  - Visual Studio 2017
 
 environment:
   CLICOLOR_FORCE: 1
@@ -14,18 +14,45 @@ environment:
 
 matrix:
   exclude:
+    - image: Ubuntu1604
+      MSYSTEM: MINGW64
+    - image: Ubuntu1604
+      MSYSTEM: MSVC
+    - image: Ubuntu1804
+      MSYSTEM: MINGW64
+    - image: Ubuntu1804
+      MSYSTEM: MSVC
     - image: Visual Studio 2017
       MSYSTEM: LINUX
-    - image: Ubuntu1604
-      MSYSTEM: MINGW64
-    - image: Ubuntu1604
-      MSYSTEM: MSVC
-    - image: Ubuntu1804
-      MSYSTEM: MINGW64
-    - image: Ubuntu1804
-      MSYSTEM: MSVC
 
 for:
+  - matrix:
+      only:
+        - image: Ubuntu1604
+    install:
+      - sudo apt install -y re2c
+      - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 10 --slave /usr/bin/g++ g++ /usr/bin/g++-7
+      - sudo update-alternatives --set gcc /usr/bin/gcc-7
+    build_script:
+      - ./misc/ci.py
+      - ./configure.py --bootstrap
+      - ./ninja all
+      - ./ninja_test
+      - misc/ninja_syntax_test.py
+      - misc/output_test.py
+
+  - matrix:
+      only:
+        - image: Ubuntu1804
+    install: sudo apt install -y re2c
+    build_script:
+      - ./misc/ci.py
+      - ./configure.py --bootstrap
+      - ./ninja all
+      - ./ninja_test
+      - misc/ninja_syntax_test.py
+      - misc/output_test.py
+
   - matrix:
       only:
         - MSYSTEM: MINGW64
@@ -56,29 +83,5 @@ for:
         ninja_test
 
         python misc/ninja_syntax_test.py
-
-  - matrix:
-      only:
-        - image: Ubuntu1604
-    install: sudo apt install re2c
-    build_script:
-      - ./misc/ci.py
-      - ./configure.py --bootstrap
-      - ./ninja all
-      - ./ninja_test
-      - misc/ninja_syntax_test.py
-      - misc/output_test.py
-
-  - matrix:
-      only:
-        - image: Ubuntu1804
-    install: sudo apt install re2c
-    build_script:
-      - ./misc/ci.py
-      - ./configure.py --bootstrap
-      - ./ninja all
-      - ./ninja_test
-      - misc/ninja_syntax_test.py
-      - misc/output_test.py
 
 test: off

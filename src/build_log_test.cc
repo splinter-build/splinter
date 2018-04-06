@@ -39,7 +39,7 @@ struct BuildLogTest : public StateTestWithBuiltinRules, public BuildLogUser {
   void TearDown() override final {
     unlink(kTestFilename);
   }
-  bool IsPathDead(StringPiece s) const override { return false; }
+  bool IsPathDead(std::string_view s) const override { return false; }
 };
 
 TEST_F(BuildLogTest, WriteRead) {
@@ -266,7 +266,7 @@ TEST_F(BuildLogTest, MultiTargetEdge) {
 }
 
 struct BuildLogRecompactTest : public BuildLogTest {
-  bool IsPathDead(StringPiece s) const override final { return s == "out2"; }
+  bool IsPathDead(std::string_view s) const override final { return s == "out2"; }
 };
 
 TEST_F(BuildLogRecompactTest, Recompact) {

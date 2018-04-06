@@ -545,19 +545,23 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const std::string& path,
   }
 
   uint64_t unused;
-  if (!CanonicalizePath(const_cast<char*>(depfile.out_.str_),
-                        &depfile.out_.len_, &unused, err)) {
+  size_t size1 = depfile.out_.size();
+  // WTF. Const cast?
+  if (!CanonicalizePath(const_cast<char*>(depfile.out_.data()),
+                        &size1, &unused, err)) {
     *err = path + ": " + *err;
+    depfile.out_ = depfile.out_.substr(0, size1);
     return false;
   }
+  depfile.out_ = depfile.out_.substr(0, size1);
 
   // Check that this depfile matches the edge's output, if not return false to
   // mark the edge as dirty.
   Node* first_output = edge->outputs_[0];
-  StringPiece opath = StringPiece(first_output->path());
+  std::string_view opath = std::string_view(first_output->path());
   if (opath != depfile.out_) {
     EXPLAIN("expected depfile '%s' to mention '%s', got '%s'", path.c_str(),
-            first_output->path().c_str(), depfile.out_.AsString().c_str());
+            first_output->path().c_str(), std::string(depfile.out_).c_str());
     return false;
   }
 
@@ -566,12 +570,17 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const std::string& path,
       PreallocateSpace(edge, depfile.ins_.size());
 
   // Add all its in-edges.
-  for (std::vector<StringPiece>::iterator i = depfile.ins_.begin();
+  for (std::vector<std::string_view>::iterator i = depfile.ins_.begin();
        i != depfile.ins_.end(); ++i, ++implicit_dep) {
     uint64_t slash_bits;
-    if (!CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits,
-                          err))
+    size_t size = i->size();
+    // WTF. Const cast?
+    if (!CanonicalizePath(const_cast<char*>(i->data()), &size, &slash_bits, err))
+    {
+      *i = i->substr(0, size);
       return false;
+    }
+    *i = i->substr(0, size);
 
     Node* node = state_->GetNode(*i, slash_bits);
     *implicit_dep = node;

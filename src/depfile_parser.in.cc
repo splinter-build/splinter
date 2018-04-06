@@ -167,9 +167,9 @@ bool DepfileParser::Parse(std::string* content, std::string* err) {
           }
         }
         ins_.emplace_back(filename, len);
-      } else if (!out_.str_) {
-        out_ = StringPiece(filename, len);
-      } else if (out_ != StringPiece(filename, len)) {
+      } else if (out_.empty()) {
+        out_ = std::string_view(filename, len);
+      } else if (out_ != std::string_view(filename, len)) {
         have_secondary_target_on_this_rule = true;
       }
     }

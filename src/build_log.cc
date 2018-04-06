@@ -104,8 +104,8 @@ uint64_t MurmurHash64A(const void* key, size_t len) {
 }  // namespace
 
 // static
-uint64_t BuildLog::LogEntry::HashCommand(StringPiece command) {
-  return MurmurHash64A(command.str_, command.len_);
+uint64_t BuildLog::LogEntry::HashCommand(std::string_view command) {
+  return MurmurHash64A(command.data(), command.size());
 }
 
 BuildLog::LogEntry::LogEntry(const std::string& output)
@@ -329,8 +329,7 @@ bool BuildLog::Load(const std::string& path, std::string* err) {
       entry->command_hash = (uint64_t)strtoull(start, nullptr, 16);
       *end = c;
     } else {
-      entry->command_hash = LogEntry::HashCommand(StringPiece(start,
-                                                              end - start));
+      entry->command_hash = LogEntry::HashCommand(std::string_view(start, end - start));
     }
   }
   fclose(file);
@@ -385,7 +384,7 @@ bool BuildLog::Recompact(const std::string& path, const BuildLogUser& user,
     return false;
   }
 
-  std::vector<StringPiece> dead_outputs;
+  std::vector<std::string_view> dead_outputs;
   for (const auto & item : entries_)
   {
     if (user.IsPathDead(item.first)) {
