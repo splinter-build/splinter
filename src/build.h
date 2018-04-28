@@ -141,7 +141,7 @@ struct CommandRunner {
   virtual bool StartCommand(Edge* edge) = 0;
 
   /// The result of waiting for a command.
-  struct Result {
+  struct Result final {
     Result() : edge(nullptr) {}
     Edge* edge;
     ExitStatus status;
@@ -156,7 +156,7 @@ struct CommandRunner {
 };
 
 /// Options (e.g. verbosity, parallelism) passed to a build.
-struct BuildConfig {
+struct BuildConfig final {
   BuildConfig() : verbosity(NORMAL), dry_run(false), parallelism(1),
                   failures_allowed(1), max_load_average(-0.0f) {}
 
@@ -176,7 +176,7 @@ struct BuildConfig {
 };
 
 /// Builder wraps the build process: starting commands, updating status.
-struct Builder {
+struct Builder final {
   Builder(State* state, const BuildConfig& config,
           BuildLog* build_log, DepsLog* deps_log,
           DiskInterface* disk_interface);
@@ -236,7 +236,7 @@ struct Builder {
 };
 
 /// Tracks the status of a build: completion fraction, printing updates.
-struct BuildStatus {
+struct BuildStatus final {
   explicit BuildStatus(const BuildConfig& config);
   void PlanHasTotalEdges(int total);
   void BuildEdgeStarted(const Edge* edge);
@@ -287,7 +287,7 @@ struct BuildStatus {
       snprintf(buf, S, format, rate);
   }
 
-  struct RateInfo {
+  struct RateInfo final {
     RateInfo() : rate_(-1) {}
 
     void Restart() { stopwatch_.Restart(); }
@@ -304,7 +304,7 @@ struct BuildStatus {
     Stopwatch stopwatch_;
   };
 
-  struct SlidingRateInfo {
+  struct SlidingRateInfo final {
     SlidingRateInfo(int n) : rate_(-1), N(n), last_update_(-1) {}
 
     void Restart() { stopwatch_.Restart(); }

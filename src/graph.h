@@ -35,7 +35,7 @@ struct State;
 
 /// Information about a node in the dependency graph: the file, whether
 /// it's dirty, mtime, etc.
-struct Node {
+struct Node final {
   Node(const std::string& path, uint64_t slash_bits)
       : path_(path),
         slash_bits_(slash_bits),
@@ -137,7 +137,7 @@ private:
 };
 
 /// An edge in the dependency graph; links between Nodes using Rules.
-struct Edge {
+struct Edge final {
   enum VisitMark {
     VisitNone,
     VisitInStack,
@@ -231,7 +231,7 @@ typedef std::set<Edge*, EdgeCmp> EdgeSet;
 
 /// ImplicitDepLoader loads implicit dependencies, as referenced via the
 /// "depfile" attribute in build files.
-struct ImplicitDepLoader {
+struct ImplicitDepLoader final {
   ImplicitDepLoader(State* state, DepsLog* deps_log,
                     DiskInterface* disk_interface,
                     DepfileParserOptions const* depfile_parser_options)
@@ -274,7 +274,7 @@ struct ImplicitDepLoader {
 
 /// DependencyScan manages the process of scanning the files in a graph
 /// and updating the dirty/outputs_ready state of all the nodes and edges.
-struct DependencyScan {
+struct DependencyScan final {
   DependencyScan(State* state, BuildLog* build_log, DepsLog* deps_log,
                  DiskInterface* disk_interface,
                  DepfileParserOptions const* depfile_parser_options)

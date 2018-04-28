@@ -11,7 +11,7 @@
 /* types defined by this include file */
 
 /* GETOPT_LONG_OPTION_T: The type of long option */
-typedef struct GETOPT_LONG_OPTION_T
+struct GETOPT_LONG_OPTION_T final
 {
   const char *name;             /* the name of the long option */
   int has_arg;                  /* one of the above macros */
@@ -23,7 +23,7 @@ typedef struct GETOPT_LONG_OPTION_T
                                  * val is returned. */
   int val;                      /* determines the value to return if flag is
                                  * nullptr. */
-} GETOPT_LONG_OPTION_T;
+};
 
 typedef GETOPT_LONG_OPTION_T option;
 

@@ -190,7 +190,7 @@ bool BuildLog::OpenForWriteIfNeeded() {
   if (!log_file_) {
     return false;
   }
-  if (setvbuf(log_file_, NULL, _IOLBF, BUFSIZ) != 0) {
+  if (setvbuf(log_file_, nullptr, _IOLBF, BUFSIZ) != 0) {
     return false;
   }
   SetCloseOnExec(fileno(log_file_));
@@ -207,7 +207,7 @@ bool BuildLog::OpenForWriteIfNeeded() {
   return true;
 }
 
-struct LineReader {
+struct LineReader final {
   explicit LineReader(FILE* file)
     : file_(file), buf_end_(buf_), line_start_(buf_), line_end_(nullptr) {
       memset(buf_, 0, sizeof(buf_));

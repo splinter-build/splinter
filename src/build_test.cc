@@ -468,16 +468,16 @@ TEST_F(PlanTest, PoolWithFailingEdge) {
 }
 
 /// Fake implementation of CommandRunner, useful for tests.
-struct FakeCommandRunner : public CommandRunner {
+struct FakeCommandRunner final : public CommandRunner {
   explicit FakeCommandRunner(VirtualFileSystem* fs) :
       max_active_edges_(1), fs_(fs) {}
 
   // CommandRunner impl
-  virtual bool CanRunMore() const;
-  virtual bool StartCommand(Edge* edge);
-  virtual bool WaitForCommand(Result* result);
-  virtual std::vector<Edge*> GetActiveEdges();
-  virtual void Abort();
+  bool CanRunMore() const override final;
+  bool StartCommand(Edge* edge) override final;
+  bool WaitForCommand(Result* result) override final;
+  std::vector<Edge*> GetActiveEdges() override final;
+  void Abort() override final;
 
   std::vector<std::string> commands_ran_;
   std::vector<Edge*> active_edges_;
@@ -496,7 +496,7 @@ struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
                             status_(config_) {
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     StateTestWithBuiltinRules::SetUp();
 
     builder_.command_runner_.reset(&command_runner_);
@@ -513,7 +513,7 @@ struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
     builder_.command_runner_.release();
   }
 
-  virtual bool IsPathDead(StringPiece s) const { return false; }
+  bool IsPathDead(StringPiece s) const override final { return false; }
 
   /// Rebuild target in the 'working tree' (fs_).
   /// State of command_runner_ and logs contents (if specified) ARE MODIFIED.
@@ -2104,13 +2104,13 @@ TEST_F(BuildWithQueryDepsLogTest, TwoOutputsDepFileGCCOnlySecondaryOutput) {
 struct BuildWithDepsLogTest : public BuildTest {
   BuildWithDepsLogTest() {}
 
-  virtual void SetUp() {
+  void SetUp() override final {
     BuildTest::SetUp();
 
     temp_dir_.CreateAndEnter("BuildWithDepsLogTest");
   }
 
-  virtual void TearDown() {
+  void TearDown() override final {
     temp_dir_.Cleanup();
   }
 

@@ -37,7 +37,7 @@ struct Rule;
 /// allowing the Plan to schedule it. The Pool will relinquish queued Edges when
 /// the total scheduled weight diminishes enough (i.e. when a scheduled edge
 /// completes).
-struct Pool {
+struct Pool final {
   Pool(const std::string& name, int depth)
     : name_(name), current_use_(0), depth_(depth), delayed_() {}
 
@@ -89,7 +89,7 @@ struct Pool {
 };
 
 /// Global state (file status) for a single run.
-struct State {
+struct State final {
   static Pool kDefaultPool;
   static Pool kConsolePool;
   static const Rule kPhonyRule;
