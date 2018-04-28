@@ -24,7 +24,7 @@
 
 struct EvalString;
 
-struct Lexer {
+struct Lexer final {
   Lexer() {}
   /// Helper ctor useful for tests.
   explicit Lexer(const char* input);

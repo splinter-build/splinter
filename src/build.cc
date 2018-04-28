@@ -46,13 +46,13 @@ using namespace std;
 namespace {
 
 /// A CommandRunner that doesn't actually run the commands.
-struct DryRunCommandRunner : public CommandRunner {
-  virtual ~DryRunCommandRunner() {}
+struct DryRunCommandRunner final : public CommandRunner {
+  ~DryRunCommandRunner() {}
 
   // Overridden from CommandRunner:
-  virtual bool CanRunMore() const;
-  virtual bool StartCommand(Edge* edge);
-  virtual bool WaitForCommand(Result* result);
+  bool CanRunMore() const override final;
+  bool StartCommand(Edge* edge) override final;
+  bool WaitForCommand(Result* result) override final;
 
  private:
   std::queue<Edge*> finished_;
@@ -655,14 +655,14 @@ void Plan::Dump() const {
   printf("ready: %d\n", (int)ready_.size());
 }
 
-struct RealCommandRunner : public CommandRunner {
+struct RealCommandRunner final : public CommandRunner {
   explicit RealCommandRunner(const BuildConfig& config) : config_(config) {}
-  virtual ~RealCommandRunner() {}
-  virtual bool CanRunMore() const;
-  virtual bool StartCommand(Edge* edge);
-  virtual bool WaitForCommand(Result* result);
-  virtual std::vector<Edge*> GetActiveEdges();
-  virtual void Abort();
+  ~RealCommandRunner() {}
+  bool CanRunMore() const override final;
+  bool StartCommand(Edge* edge) override final;
+  bool WaitForCommand(Result* result) override final;
+  std::vector<Edge*> GetActiveEdges() override final;
+  void Abort() override final;
 
   const BuildConfig& config_;
   SubprocessSet subprocs_;

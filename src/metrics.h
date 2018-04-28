@@ -24,7 +24,7 @@
 /// various actions.  To use, see METRIC_RECORD below.
 
 /// A single metrics we're tracking, like "depfile load time".
-struct Metric {
+struct Metric final {
   std::string name;
   /// Number of times we've hit the code path.
   int count;
@@ -35,7 +35,7 @@ struct Metric {
 
 /// A scoped object for recording a metric across the body of a function.
 /// Used by the METRIC_RECORD macro.
-struct ScopedMetric {
+struct ScopedMetric final {
   explicit ScopedMetric(Metric* metric);
   ~ScopedMetric();
 
@@ -47,7 +47,7 @@ private:
 };
 
 /// The singleton that stores metrics and prints the report.
-struct Metrics {
+struct Metrics final {
   Metric* NewMetric(const std::string& name);
 
   /// Print a summary report to stdout.
@@ -63,7 +63,7 @@ int64_t GetTimeMillis();
 
 /// A simple stopwatch which returns the time
 /// in seconds since Restart() was called.
-struct Stopwatch {
+struct Stopwatch final {
  public:
   Stopwatch() : started_(0) {}
 

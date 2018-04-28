@@ -190,7 +190,7 @@ bool BuildLog::OpenForWriteIfNeeded() {
   if (!log_file_) {
     return false;
   }
-  setvbuf(log_file_, NULL, _IOLBF, BUFSIZ);
+  setvbuf(log_file_, nullptr, _IOLBF, BUFSIZ);
   SetCloseOnExec(fileno(log_file_));
 
   // Opening a file in append mode doesn't set the file pointer to the file's
@@ -206,7 +206,7 @@ bool BuildLog::OpenForWriteIfNeeded() {
   return true;
 }
 
-struct LineReader {
+struct LineReader final {
   explicit LineReader(FILE* file)
     : file_(file), buf_end_(buf_), line_start_(buf_), line_end_(nullptr) {
       memset(buf_, 0, sizeof(buf_));
