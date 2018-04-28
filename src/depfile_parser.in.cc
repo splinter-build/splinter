@@ -63,7 +63,7 @@ bool DepfileParser::Parse(std::string* content, std::string* err) {
     for (;;) {
       // start: beginning of the current parsed span.
       const char* start = in;
-      char* yymarker = NULL;
+      char* yymarker = nullptr;
       /*!re2c
       re2c:define:YYCTYPE = "unsigned char";
       re2c:define:YYCURSOR = in;

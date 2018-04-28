@@ -308,6 +308,7 @@ else:
 if platform.is_msvc():
     cflags = ['/showIncludes',
               '/nologo',  # Don't print startup banner.
+              '/std:c++14', # Set the C++ standard to use.
               '/Zi',  # Create pdb with debug info.
               '/W4',  # Highest warning level.
               '/WX',  # Warnings as errors.
@@ -525,11 +526,11 @@ if platform.is_windows():
         objs += cxx(name, variables=cxxvariables)
     if platform.is_msvc():
         objs += cxx('minidump-win32', variables=cxxvariables)
-    objs += cc('getopt')
+    objs += cxx('getopt')
 else:
     objs += cxx('subprocess-posix')
 if platform.is_aix():
-    objs += cc('getopt')
+    objs += cxx('getopt')
 if platform.is_msvc():
     ninja_lib = n.build(built('ninja.lib'), 'ar', objs)
 else:

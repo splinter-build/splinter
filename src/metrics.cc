@@ -29,9 +29,7 @@
 
 #include "util.h"
 
-using namespace std;
-
-Metrics* g_metrics = NULL;
+Metrics* g_metrics = nullptr;
 
 namespace {
 
@@ -39,7 +37,7 @@ namespace {
 /// Compute a platform-specific high-res timer value that fits into an int64.
 int64_t HighResTimer() {
   timeval tv;
-  if (gettimeofday(&tv, NULL) < 0)
+  if (gettimeofday(&tv, nullptr) < 0)
     Fatal("gettimeofday: %s", strerror(errno));
   return (int64_t)tv.tv_sec * 1000*1000 + tv.tv_usec;
 }

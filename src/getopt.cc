@@ -13,7 +13,7 @@ on program invocation.  The argument optstring is a list of available option
 characters.  If such a character is followed by a colon (`:'), the option
 takes an argument, which is placed in optarg.  If such a character is
 followed by two colons, the option takes an optional argument, which is
-placed in optarg.  If the option does not take an argument, optarg is NULL.
+placed in optarg.  If the option does not take an argument, optarg is nullptr.
 
 The external variable optind is the index of the next array element of argv
 to be processed; it communicates from one call to the next which element to
@@ -31,10 +31,10 @@ in the form
 
 It takes the additional arguments longopts which is a pointer to the first
 element of an array of type GETOPT_LONG_OPTION_T.  The last element of the
-array has to be filled with NULL for the name field.
+array has to be filled with nullptr for the name field.
 
 The longind pointer points to the index of the current long option relative
-to longopts if it is non-NULL.
+to longopts if it is non-nullptr.
 
 The getopt() function returns the option character if the option was found
 successfully, `:' if there was a missing parameter for one of the options,
@@ -102,7 +102,7 @@ typedef enum GETOPT_ORDERING_T
 } GETOPT_ORDERING_T;
 
 /* globally-defined variables */
-char *optarg = NULL;
+char *optarg = nullptr;
 int optind = 0;
 int opterr = 1;
 int optopt = '?';
@@ -137,7 +137,7 @@ permute (char **argv, int len1, int len2)
 static int
 is_option (char *argv_element, int only)
 {
-  return ((argv_element == NULL)
+  return ((argv_element == nullptr)
           || (argv_element[0] == '-') || (only && argv_element[0] == '+'));
 }
 
@@ -152,16 +152,16 @@ getopt_internal (int argc, char **argv, char *shortopts,
   int num_nonopts = 0;
   int optindex = 0;
   size_t match_chars = 0;
-  char *possible_arg = NULL;
+  char *possible_arg = nullptr;
   int longopt_match = -1;
   int has_arg = -1;
-  char *cp = NULL;
+  char *cp = nullptr;
   int arg_next = 0;
 
   /* first, deal with silly parameters and easy stuff */
-  if (argc == 0 || argv == NULL || (shortopts == NULL && longopts == NULL))
+  if (argc == 0 || argv == nullptr || (shortopts == nullptr && longopts == nullptr))
     return (optopt = '?');
-  if (optind >= argc || argv[optind] == NULL)
+  if (optind >= argc || argv[optind] == nullptr)
     return EOF;
   if (strcmp (argv[optind], "--") == 0)
     {
@@ -173,13 +173,13 @@ getopt_internal (int argc, char **argv, char *shortopts,
     optind = optwhere = 1;
 
   /* define ordering */
-  if (shortopts != NULL && (*shortopts == '-' || *shortopts == '+'))
+  if (shortopts != nullptr && (*shortopts == '-' || *shortopts == '+'))
     {
       ordering = (*shortopts == '-') ? RETURN_IN_ORDER : REQUIRE_ORDER;
       shortopts++;
     }
   else
-    ordering = (getenv ("POSIXLY_CORRECT") != NULL) ? REQUIRE_ORDER : PERMUTE;
+    ordering = (getenv ("POSIXLY_CORRECT") != nullptr) ? REQUIRE_ORDER : PERMUTE;
 
   /*
    * based on ordering, find our next option, if we're at the beginning of
@@ -197,7 +197,7 @@ getopt_internal (int argc, char **argv, char *shortopts,
               optind++;
               num_nonopts++;
             }
-          if (argv[optind] == NULL)
+          if (argv[optind] == nullptr)
             {
               /* no more options */
               optind = permute_from;
@@ -227,7 +227,7 @@ getopt_internal (int argc, char **argv, char *shortopts,
   /* we've got an option, so parse it */
 
   /* first, is it a long option? */
-  if (longopts != NULL
+  if (longopts != nullptr
       && (memcmp (argv[optind], "--", 2) == 0
           || (only && argv[optind][0] == '+')) && optwhere == 1)
     {
@@ -236,7 +236,7 @@ getopt_internal (int argc, char **argv, char *shortopts,
         optwhere = 2;
       longopt_match = -1;
       possible_arg = strchr (argv[optind] + optwhere, '=');
-      if (possible_arg == NULL)
+      if (possible_arg == nullptr)
         {
           /* no =, so next argv might be arg */
           match_chars = strlen (argv[optind]);
@@ -245,7 +245,7 @@ getopt_internal (int argc, char **argv, char *shortopts,
         }
       else
         match_chars = (possible_arg - argv[optind]) - optwhere;
-      for (optindex = 0; longopts[optindex].name != NULL; optindex++)
+      for (optindex = 0; longopts[optindex].name != nullptr; optindex++)
         {
           if (memcmp (argv[optind] + optwhere,
                       longopts[optindex].name, match_chars) == 0)
@@ -280,10 +280,10 @@ getopt_internal (int argc, char **argv, char *shortopts,
         has_arg = longopts[longopt_match].has_arg;
     }
   /* if we didn't find a long option, is it a short option? */
-  if (longopt_match < 0 && shortopts != NULL)
+  if (longopt_match < 0 && shortopts != nullptr)
     {
       cp = strchr (shortopts, argv[optind][optwhere]);
-      if (cp == NULL)
+      if (cp == nullptr)
         {
           /* couldn't find option in shortopts */
           if (opterr)
@@ -316,7 +316,7 @@ getopt_internal (int argc, char **argv, char *shortopts,
           optwhere = 1;
         }
       else
-        optarg = NULL;
+        optarg = nullptr;
       break;
     case required_argument:
       if (*possible_arg == '=')
@@ -355,7 +355,7 @@ getopt_internal (int argc, char **argv, char *shortopts,
         }
       else
         optwhere = 1;
-      optarg = NULL;
+      optarg = nullptr;
       break;
     }
 
@@ -371,9 +371,9 @@ getopt_internal (int argc, char **argv, char *shortopts,
   /* finally return */
   if (longopt_match >= 0)
     {
-      if (longind != NULL)
+      if (longind != nullptr)
         *longind = longopt_match;
-      if (longopts[longopt_match].flag != NULL)
+      if (longopts[longopt_match].flag != nullptr)
         {
           *(longopts[longopt_match].flag) = longopts[longopt_match].val;
           return 0;
@@ -389,7 +389,7 @@ getopt_internal (int argc, char **argv, char *shortopts,
 int
 getopt (int argc, char **argv, char *optstring)
 {
-  return getopt_internal (argc, argv, optstring, NULL, NULL, 0);
+  return getopt_internal (argc, argv, optstring, nullptr, nullptr, 0);
 }
 #endif
 
