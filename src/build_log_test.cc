@@ -33,14 +33,14 @@ namespace {
 const char kTestFilename[] = "BuildLogTest-tempfile";
 
 struct BuildLogTest : public StateTestWithBuiltinRules, public BuildLogUser {
-  virtual void SetUp() {
+  void SetUp() override final {
     // In case a crashing test left a stale file behind.
     unlink(kTestFilename);
   }
-  virtual void TearDown() {
+  void TearDown() override final {
     unlink(kTestFilename);
   }
-  virtual bool IsPathDead(StringPiece s) const { return false; }
+  bool IsPathDead(StringPiece s) const override { return false; }
 };
 
 TEST_F(BuildLogTest, WriteRead) {
@@ -315,7 +315,7 @@ TEST_F(BuildLogTest, MultiTargetEdge) {
 }
 
 struct BuildLogRecompactTest : public BuildLogTest {
-  virtual bool IsPathDead(StringPiece s) const { return s == "out2"; }
+  bool IsPathDead(StringPiece s) const override final { return s == "out2"; }
 };
 
 TEST_F(BuildLogRecompactTest, Recompact) {

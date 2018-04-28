@@ -26,12 +26,12 @@
 namespace {
 
 struct DiskInterfaceTest : public testing::Test {
-  virtual void SetUp() {
+  void SetUp() override final {
     // These tests do real disk accesses, so create a temp dir.
     temp_dir_.CreateAndEnter("Ninja-DiskInterfaceTest");
   }
 
-  virtual void TearDown() {
+  void TearDown() override final {
     temp_dir_.Cleanup();
   }
 
@@ -216,20 +216,20 @@ struct StatTest : public StateTestWithBuiltinRules,
   StatTest() : scan_(&state_, nullptr, nullptr, this, nullptr) {}
 
   // DiskInterface implementation.
-  virtual TimeStamp Stat(const std::string& path, std::string* err) const;
-  virtual bool WriteFile(const std::string& path, const std::string& contents) {
+  TimeStamp Stat(const std::string& path, std::string* err) const override final;
+  bool WriteFile(const std::string& path, const std::string& contents) override final {
     assert(false);
     return true;
   }
-  virtual bool MakeDir(const std::string& path) {
+  bool MakeDir(const std::string& path) override final {
     assert(false);
     return false;
   }
-  virtual Status ReadFile(const std::string& path, std::string* contents, std::string* err) {
+  Status ReadFile(const std::string& path, std::string* contents, std::string* err) override final {
     assert(false);
     return NotFound;
   }
-  virtual int RemoveFile(const std::string& path) {
+  int RemoveFile(const std::string& path) override final {
     assert(false);
     return 0;
   }
