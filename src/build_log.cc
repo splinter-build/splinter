@@ -122,7 +122,7 @@ BuildLog::LogEntry::LogEntry(const std::string& output, uint64_t command_hash,
 {}
 
 BuildLog::BuildLog()
-  : log_file_(NULL), needs_recompaction_(false) {}
+  : log_file_(nullptr), needs_recompaction_(false) {}
 
 BuildLog::~BuildLog() {
   Close();
@@ -179,7 +179,7 @@ void BuildLog::Close() {
   OpenForWriteIfNeeded();  // create the file even if nothing has been recorded
   if (log_file_)
     fclose(log_file_);
-  log_file_ = NULL;
+  log_file_ = nullptr;
 }
 
 bool BuildLog::OpenForWriteIfNeeded() {
@@ -208,14 +208,14 @@ bool BuildLog::OpenForWriteIfNeeded() {
 
 struct LineReader {
   explicit LineReader(FILE* file)
-    : file_(file), buf_end_(buf_), line_start_(buf_), line_end_(NULL) {
+    : file_(file), buf_end_(buf_), line_start_(buf_), line_end_(nullptr) {
       memset(buf_, 0, sizeof(buf_));
   }
 
   // Reads a \n-terminated line from the file passed to the constructor.
   // On return, *line_start points to the beginning of the next line, and
   // *line_end points to the \n at the end of the line. If no newline is seen
-  // in a fixed buffer size, *line_end is set to NULL. Returns false on EOF.
+  // in a fixed buffer size, *line_end is set to nullptr. Returns false on EOF.
   bool ReadLine(char** line_start, char** line_end) {
     if (line_start_ >= buf_end_ || !line_end_) {
       // Buffer empty, refill.
@@ -253,7 +253,7 @@ struct LineReader {
   char* buf_end_;  // Points one past the last valid byte in |buf_|.
 
   char* line_start_;
-  // Points at the next \n in buf_ after line_start, or NULL.
+  // Points at the next \n in buf_ after line_start, or nullptr.
   char* line_end_;
 };
 
@@ -318,7 +318,7 @@ LoadStatus BuildLog::Load(const std::string& path, std::string* err) {
     if (!end)
       continue;
     *end = 0;
-    restat_mtime = strtoll(start, NULL, 10);
+    restat_mtime = strtoll(start, nullptr, 10);
     start = end + 1;
 
     end = (char*)memchr(start, kFieldSeparator, line_end - start);
@@ -345,7 +345,7 @@ LoadStatus BuildLog::Load(const std::string& path, std::string* err) {
     entry->mtime = restat_mtime;
     if (log_version >= 5) {
       char c = *end; *end = '\0';
-      entry->command_hash = (uint64_t)strtoull(start, NULL, 16);
+      entry->command_hash = (uint64_t)strtoull(start, nullptr, 16);
       *end = c;
     } else {
       entry->command_hash = LogEntry::HashCommand(StringPiece(start,
@@ -377,7 +377,7 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const std::string& path) {
   Entries::iterator i = entries_.find(path);
   if (i != entries_.end())
     return i->second;
-  return NULL;
+  return nullptr;
 }
 
 bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {

@@ -4,7 +4,7 @@ include(CheckIncludeFileCXX)
 
 project(ninja)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -111,7 +111,7 @@ if(WIN32)
 		src/includes_normalize-win32.cc
 		src/msvc_helper-win32.cc
 		src/msvc_helper_main-win32.cc
-		src/getopt.c
+		src/getopt.cc
 	)
 	if(MSVC)
 		target_sources(libninja PRIVATE src/minidump-win32.cc)

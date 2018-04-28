@@ -41,7 +41,7 @@ struct Node {
         mtime_(-1),
         dirty_(false),
         dyndep_pending_(false),
-        in_edge_(NULL),
+        in_edge_(nullptr),
         id_(-1) {}
 
   /// Return false on error.
@@ -124,7 +124,7 @@ private:
   /// has not yet been loaded.
   bool dyndep_pending_;
 
-  /// The Edge that produces this Node, or NULL when there is no
+  /// The Edge that produces this Node, or nullptr when there is no
   /// known edge to produce it.
   Edge* in_edge_;
 
@@ -143,7 +143,7 @@ struct Edge {
     VisitDone
   };
 
-  Edge() : rule_(NULL), pool_(NULL), dyndep_(NULL), env_(NULL),
+  Edge() : rule_(nullptr), pool_(nullptr), dyndep_(nullptr), env_(nullptr),
            mark_(VisitNone), outputs_ready_(false), deps_loaded_(false),
            deps_missing_(false), implicit_deps_(0), order_only_deps_(0),
            implicit_outs_(0) {}

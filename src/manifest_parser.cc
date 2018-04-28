@@ -102,7 +102,7 @@ bool ManifestParser::ParsePool(std::string* err) {
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
 
-  if (state_->LookupPool(name) != NULL)
+  if (state_->LookupPool(name) != nullptr)
     return lexer_.Error("duplicate pool '" + name + "'", err);
 
   int depth = -1;
@@ -139,7 +139,7 @@ bool ManifestParser::ParseRule(std::string* err) {
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
 
-  if (env_->LookupRuleCurrentScope(name) != NULL)
+  if (env_->LookupRuleCurrentScope(name) != nullptr)
     return lexer_.Error("duplicate rule '" + name + "'", err);
 
   Rule* rule = new Rule(name);  // XXX scoped_ptr
@@ -313,7 +313,7 @@ bool ManifestParser::ParseEdge(std::string* err) {
   std::string pool_name = edge->GetBinding("pool");
   if (!pool_name.empty()) {
     Pool* pool = state_->LookupPool(pool_name);
-    if (pool == NULL)
+    if (pool == nullptr)
       return lexer_.Error("unknown pool name '" + pool_name + "'", err);
     edge->pool_ = pool;
   }

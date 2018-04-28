@@ -54,13 +54,13 @@ char* mkdtemp(char* name_template) {
   int err = _mktemp_s(name_template, strlen(name_template) + 1);
   if (err < 0) {
     perror("_mktemp_s");
-    return NULL;
+    return nullptr;
   }
 
   err = _mkdir(name_template);
   if (err < 0) {
     perror("mkdir");
-    return NULL;
+    return nullptr;
   }
 
   return name_template;
@@ -100,7 +100,7 @@ Node* StateTestWithBuiltinRules::GetNode(const std::string& path) {
 
 void AssertParse(State* state, const char* input,
                  ManifestParserOptions opts) {
-  ManifestParser parser(state, NULL, opts);
+  ManifestParser parser(state, nullptr, opts);
   std::string err;
   EXPECT_TRUE(parser.ParseTest(input, &err));
   ASSERT_EQ("", err);
