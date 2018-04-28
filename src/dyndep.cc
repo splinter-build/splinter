@@ -92,7 +92,7 @@ bool DyndepLoader::UpdateEdge(Edge* edge, Dyndeps const* dyndeps,
   for (std::vector<Node*>::const_iterator i =
            dyndeps->implicit_outputs_.begin();
        i != dyndeps->implicit_outputs_.end(); ++i) {
-    if ((*i)->in_edge() != NULL) {
+    if ((*i)->in_edge() != nullptr) {
       *err = "multiple rules generate " + (*i)->path();
       return false;
     }

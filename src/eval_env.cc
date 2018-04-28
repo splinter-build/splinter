@@ -30,14 +30,14 @@ void BindingEnv::AddBinding(const std::string& key, const std::string& val) {
 }
 
 void BindingEnv::AddRule(const Rule* rule) {
-  assert(LookupRuleCurrentScope(rule->name()) == NULL);
+  assert(LookupRuleCurrentScope(rule->name()) == nullptr);
   rules_[rule->name()] = rule;
 }
 
 const Rule* BindingEnv::LookupRuleCurrentScope(const std::string& rule_name) {
   std::map<std::string, const Rule*>::iterator i = rules_.find(rule_name);
   if (i == rules_.end())
-    return NULL;
+    return nullptr;
   return i->second;
 }
 
@@ -47,7 +47,7 @@ const Rule* BindingEnv::LookupRule(const std::string& rule_name) {
     return i->second;
   if (parent_)
     return parent_->LookupRule(rule_name);
-  return NULL;
+  return nullptr;
 }
 
 void Rule::AddBinding(const std::string& key, const EvalString& val) {
@@ -57,7 +57,7 @@ void Rule::AddBinding(const std::string& key, const EvalString& val) {
 const EvalString* Rule::GetBinding(const std::string& key) const {
   Bindings::const_iterator i = bindings_.find(key);
   if (i == bindings_.end())
-    return NULL;
+    return nullptr;
   return &i->second;
 }
 

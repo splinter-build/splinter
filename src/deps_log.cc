@@ -56,7 +56,7 @@ bool DepsLog::OpenForWrite(const std::string& path, std::string* err) {
   }
   // Set the buffer size to this and flush the file buffer after every record
   // to make sure records aren't written partially.
-  setvbuf(file_, NULL, _IOFBF, kMaxRecordSize + 1);
+  setvbuf(file_, nullptr, _IOFBF, kMaxRecordSize + 1);
   SetCloseOnExec(fileno(file_));
 
   // Opening a file in append mode doesn't set the file pointer to the file's
@@ -83,7 +83,7 @@ bool DepsLog::OpenForWrite(const std::string& path, std::string* err) {
 bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
                          const std::vector<Node*>& nodes) {
   return RecordDeps(node, mtime, nodes.size(),
-                    nodes.empty() ? NULL : (Node**)&nodes.front());
+                    nodes.empty() ? nullptr : (Node**)&nodes.front());
 }
 
 bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
@@ -164,7 +164,7 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
 void DepsLog::Close() {
   if (file_)
     fclose(file_);
-  file_ = NULL;
+  file_ = nullptr;
 }
 
 bool DepsLog::Load(const std::string& path, State* state, std::string* err) {
@@ -309,7 +309,7 @@ DepsLog::Deps* DepsLog::GetDeps(Node* node) {
   // Abort if the node has no id (never referenced in the deps) or if
   // there's no deps recorded for the node.
   if (node->id() < 0 || node->id() >= (int)deps_.size())
-    return NULL;
+    return nullptr;
   return deps_[node->id()];
 }
 
@@ -382,7 +382,7 @@ bool DepsLog::UpdateDeps(int out_id, Deps* deps) {
   if (out_id >= (int)deps_.size())
     deps_.resize(out_id + 1);
 
-  bool delete_old = deps_[out_id] != NULL;
+  bool delete_old = deps_[out_id] != nullptr;
   if (delete_old)
     delete deps_[out_id];
   deps_[out_id] = deps;

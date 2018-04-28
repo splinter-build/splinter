@@ -46,7 +46,7 @@ int CLWrapper::Run(const std::string& command, std::string* output) {
   HANDLE nul =
       CreateFileA("NUL", GENERIC_READ,
                   FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                  &security_attributes, OPEN_EXISTING, 0, NULL);
+                  &security_attributes, OPEN_EXISTING, 0, nullptr);
   if (nul == INVALID_HANDLE_VALUE)
     Fatal("couldn't open nul");
 
@@ -65,9 +65,9 @@ int CLWrapper::Run(const std::string& command, std::string* output) {
   startup_info.hStdOutput = stdout_write;
   startup_info.dwFlags |= STARTF_USESTDHANDLES;
 
-  if (!CreateProcessA(NULL, (char*)command.c_str(), NULL, NULL,
+  if (!CreateProcessA(nullptr, (char*)command.c_str(), nullptr, nullptr,
                       /* inherit handles */ TRUE, 0,
-                      env_block_, NULL,
+                      env_block_, nullptr,
                       &startup_info, &process_info)) {
     Win32Fatal("CreateProcess");
   }
@@ -82,7 +82,7 @@ int CLWrapper::Run(const std::string& command, std::string* output) {
   while (read_len) {
     char buf[64 << 10];
     read_len = 0;
-    if (!::ReadFile(stdout_read, buf, sizeof(buf), &read_len, NULL) &&
+    if (!::ReadFile(stdout_read, buf, sizeof(buf), &read_len, nullptr) &&
         GetLastError() != ERROR_BROKEN_PIPE) {
       Win32Fatal("ReadFile");
     }

@@ -235,7 +235,7 @@ TEST_F(BuildLogTest, VeryLongInputLine) {
   ASSERT_EQ("", err);
 
   BuildLog::LogEntry* e = log.LookupByOutput("out");
-  ASSERT_EQ(NULL, e);
+  ASSERT_EQ(nullptr, e);
 
   e = log.LookupByOutput("out2");
   ASSERT_TRUE(e);

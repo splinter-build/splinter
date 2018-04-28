@@ -78,16 +78,16 @@ void WriteDepFileOrDie(const char* object_path, const CLParser& parse) {
 }  // anonymous namespace
 
 int MSVCHelperMain(int argc, char** argv) {
-  const char* output_filename = NULL;
-  const char* envfile = NULL;
+  const char* output_filename = nullptr;
+  const char* envfile = nullptr;
 
   const option kLongOptions[] = {
-    { "help", no_argument, NULL, 'h' },
-    { NULL, 0, NULL, 0 }
+    { "help", no_argument, nullptr, 'h' },
+    { nullptr, 0, nullptr, 0 }
   };
   int opt;
   std::string deps_prefix;
-  while ((opt = getopt_long(argc, argv, "e:o:p:h", kLongOptions, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "e:o:p:h", kLongOptions, nullptr)) != -1) {
     switch (opt) {
       case 'e':
         envfile = optarg;
@@ -140,7 +140,7 @@ int MSVCHelperMain(int argc, char** argv) {
   // CLWrapper's output already as \r\n line endings, make sure the C runtime
   // doesn't expand this to \r\r\n.
   _setmode(_fileno(stdout), _O_BINARY);
-  // Avoid printf and C std::strings, since the actual output might contain null
+  // Avoid printf and C std::strings, since the actual output might contain nullptr
   // bytes like UTF-16 does (yuck).
   fwrite(&output[0], 1, output.size(), stdout);
 
