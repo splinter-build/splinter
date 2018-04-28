@@ -48,11 +48,11 @@ void RegisterTest(testing::Test* (*)(), const char*);
 
 extern testing::Test* g_current_test;
 #define TEST_F_(x, y, name)                                           \
-  struct y : public x {                                               \
+  struct y final : public x {                                         \
     static testing::Test* Create() { return g_current_test = new y; } \
-    virtual void Run();                                               \
+    void Run() override final;                                        \
   };                                                                  \
-  struct Register##y {                                                \
+  struct Register##y final {                                          \
     Register##y() { RegisterTest(y::Create, name); }                  \
   };                                                                  \
   Register##y g_register_##y;                                         \
@@ -131,7 +131,7 @@ void VerifyGraph(const State& state);
 /// An implementation of DiskInterface that uses an in-memory representation
 /// of disk state.  It also logs file accesses and directory creations
 /// so it can be used by tests to verify disk access patterns.
-struct VirtualFileSystem : public DiskInterface {
+struct VirtualFileSystem final : public DiskInterface {
   VirtualFileSystem() : now_(1) {}
 
   /// "Create" a file with contents.
@@ -144,14 +144,14 @@ struct VirtualFileSystem : public DiskInterface {
   }
 
   // DiskInterface
-  virtual TimeStamp Stat(const std::string& path, std::string* err) const;
-  virtual bool WriteFile(const std::string& path, const std::string& contents);
-  virtual bool MakeDir(const std::string& path);
-  virtual Status ReadFile(const std::string& path, std::string* contents, std::string* err);
-  virtual int RemoveFile(const std::string& path);
+  TimeStamp Stat(const std::string& path, std::string* err) const override final;
+  bool WriteFile(const std::string& path, const std::string& contents) override final;
+  bool MakeDir(const std::string& path) override final;
+  Status ReadFile(const std::string& path, std::string* contents, std::string* err) override final;
+  int RemoveFile(const std::string& path) override final;
 
   /// An entry for a single in-memory file.
-  struct Entry {
+  struct Entry final {
     int mtime;
     std::string stat_error;  // If mtime is -1.
     std::string contents;
@@ -168,7 +168,7 @@ struct VirtualFileSystem : public DiskInterface {
   int now_;
 };
 
-struct ScopedTempDir {
+struct ScopedTempDir final {
   /// Create a temporary directory and chdir into it.
   void CreateAndEnter(const std::string& name);
 

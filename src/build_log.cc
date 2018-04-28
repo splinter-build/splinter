@@ -190,7 +190,7 @@ void BuildLog::Close() {
   log_file_ = nullptr;
 }
 
-struct LineReader {
+struct LineReader final {
   explicit LineReader(FILE* file)
     : file_(file), buf_end_(buf_), line_start_(buf_), line_end_(nullptr) {
       memset(buf_, 0, sizeof(buf_));

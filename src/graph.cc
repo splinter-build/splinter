@@ -323,12 +323,12 @@ bool Edge::AllInputsReady() const {
 }
 
 /// An Env for an Edge, providing $in and $out.
-struct EdgeEnv : public Env {
+struct EdgeEnv final : public Env {
   enum EscapeKind { kShellEscape, kDoNotEscape };
 
   EdgeEnv(const Edge* const edge, const EscapeKind escape)
       : edge_(edge), escape_in_out_(escape), recursive_(false) {}
-  virtual std::string LookupVariable(const std::string& var);
+  std::string LookupVariable(const std::string& var) override final;
 
   /// Given a span of Nodes, construct a list of paths suitable for a command
   /// line.

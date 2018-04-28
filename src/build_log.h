@@ -40,7 +40,7 @@ struct BuildLogUser {
 ///    when we need to rebuild due to the command changing
 /// 2) timing information, perhaps for generating reports
 /// 3) restat information
-struct BuildLog {
+struct BuildLog final {
   BuildLog();
   ~BuildLog();
 
@@ -52,7 +52,7 @@ struct BuildLog {
   /// Load the on-disk log.
   bool Load(const std::string& path, std::string* err);
 
-  struct LogEntry {
+  struct LogEntry final {
     std::string output;
     uint64_t command_hash;
     int start_time;

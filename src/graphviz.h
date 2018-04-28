@@ -25,7 +25,7 @@ struct Edge;
 struct State;
 
 /// Runs the process of creating GraphViz .dot file output.
-struct GraphViz {
+struct GraphViz final {
   GraphViz(State* state, DiskInterface* disk_interface)
       : dyndep_loader_(state, disk_interface) {}
   void Start();

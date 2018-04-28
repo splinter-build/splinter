@@ -20,7 +20,7 @@
 struct CleanTest : public StateTestWithBuiltinRules {
   VirtualFileSystem fs_;
   BuildConfig config_;
-  virtual void SetUp() {
+  void SetUp() override final {
     config_.verbosity = BuildConfig::QUIET;
   }
 };

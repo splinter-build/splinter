@@ -67,18 +67,18 @@ struct DiskInterface: public FileReader {
 };
 
 /// Implementation of DiskInterface that actually hits the disk.
-struct RealDiskInterface : public DiskInterface {
+struct RealDiskInterface final : public DiskInterface {
   RealDiskInterface()
 #ifdef _WIN32
                       : use_cache_(false)
 #endif
                       {}
   virtual ~RealDiskInterface() {}
-  virtual TimeStamp Stat(const std::string& path, std::string* err) const;
-  virtual bool MakeDir(const std::string& path);
-  virtual bool WriteFile(const std::string& path, const std::string& contents);
-  virtual Status ReadFile(const std::string& path, std::string* contents, std::string* err);
-  virtual int RemoveFile(const std::string& path);
+  TimeStamp Stat(const std::string& path, std::string* err) const override final;
+  bool MakeDir(const std::string& path) override final;
+  bool WriteFile(const std::string& path, const std::string& contents) override final;
+  Status ReadFile(const std::string& path, std::string* contents, std::string* err) override final;
+  int RemoveFile(const std::string& path) override final;
 
   /// Whether stat information can be cached.  Only has an effect on Windows.
   void AllowStatCache(bool allow);

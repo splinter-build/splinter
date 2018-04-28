@@ -29,7 +29,7 @@
 #include "test.h"
 #include "line_printer.h"
 
-struct RegisteredTest {
+struct RegisteredTest final {
   testing::Test* (*factory)();
   const char *name;
   bool should_run;

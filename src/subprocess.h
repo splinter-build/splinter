@@ -39,7 +39,7 @@
 /// passive: it expects the caller to notify it when its fds are ready
 /// for reading, as well as call Finish() to reap the child once done()
 /// is true.
-struct Subprocess {
+struct Subprocess final {
   ~Subprocess();
 
   /// Returns ExitSuccess on successful process exit, ExitInterrupted if
@@ -79,7 +79,7 @@ struct Subprocess {
 /// SubprocessSet runs a ppoll/pselect() loop around a set of Subprocesses.
 /// DoWork() waits for any state change in subprocesses; finished_
 /// is a queue of subprocesses as they finish.
-struct SubprocessSet {
+struct SubprocessSet final {
   SubprocessSet();
   ~SubprocessSet();
 
