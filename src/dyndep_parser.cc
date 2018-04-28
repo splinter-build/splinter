@@ -104,7 +104,7 @@ bool DyndepParser::ParseLet(std::string* key, EvalString* value, std::string* er
 bool DyndepParser::ParseEdge(std::string* err) {
   // Parse one explicit output.  We expect it to already have an edge.
   // We will record its dynamically-discovered dependency information.
-  Dyndeps* dyndeps = NULL;
+  Dyndeps* dyndeps = nullptr;
   {
     EvalString out0;
     if (!lexer_.ReadPath(&out0, err))

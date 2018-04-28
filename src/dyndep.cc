@@ -91,7 +91,7 @@ bool DyndepLoader::UpdateEdge(Edge* edge, Dyndeps const* dyndeps,
   // Add this edge as incoming to each new output.
   for(auto const& output : dyndeps->implicit_outputs_)
   {
-    if(output->in_edge() != NULL)
+    if(output->in_edge() != nullptr)
     {
       *err = "multiple rules generate " + output->path();
       return false;

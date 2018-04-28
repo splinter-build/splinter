@@ -114,7 +114,7 @@ bool DependencyScan::RecomputeDirty(Node* node, std::vector<Node*>* stack,
   }
 
   // Visit all inputs; we're dirty if any of the inputs are dirty.
-  Node* most_recent_input = NULL;
+  Node* most_recent_input = nullptr;
   for (std::vector<Node*>::iterator i = edge->inputs_.begin();
        i != edge->inputs_.end(); ++i) {
     // Visit this input.
@@ -173,7 +173,7 @@ bool DependencyScan::RecomputeDirty(Node* node, std::vector<Node*>* stack,
 
 bool DependencyScan::VerifyDAG(Node* node, std::vector<Node*>* stack, std::string* err) {
   Edge* edge = node->in_edge();
-  assert(edge != NULL);
+  assert(edge != nullptr);
 
   // If we have no temporary mark on the edge then we do not yet have a cycle.
   if (edge->mark_ != Edge::VisitInStack)
@@ -437,7 +437,7 @@ void Edge::Dump(const char* prefix) const
   printf("%s[ ", prefix);
   for(auto const& in : inputs_)
   {
-    if(in == NULL)
+    if(in == nullptr)
     {
       break;
     }
@@ -446,7 +446,7 @@ void Edge::Dump(const char* prefix) const
   printf("--%s-> ", rule_->name().c_str());
   for(auto const& out : outputs_)
   {
-    if(out == NULL)
+    if(out == nullptr)
     {
       break;
     }
@@ -483,7 +483,7 @@ std::string Node::PathDecanonicalized(const std::string& path, uint64_t slash_bi
   std::string result = path;
 #ifdef _WIN32
   uint64_t mask = 1;
-  for (char* c = &result[0]; (c = strchr(c, '/')) != NULL;) {
+  for (char* c = &result[0]; (c = strchr(c, '/')) != nullptr;) {
     if (slash_bits & mask)
       *c = '\\';
     c++;
@@ -506,7 +506,7 @@ void Node::Dump(const char* prefix) const {
   printf(" out edges:\n");
   for(auto const& out : out_edges())
   {
-    if(out == NULL)
+    if(out == nullptr)
     {
        break;
     }
@@ -625,7 +625,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const std::string& path,
 bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, std::string* err) {
   // NOTE: deps are only supported for single-target edges.
   Node* output = edge->outputs_[0];
-  DepsLog::Deps* deps = deps_log_ ? deps_log_->GetDeps(output) : NULL;
+  DepsLog::Deps* deps = deps_log_ ? deps_log_->GetDeps(output) : nullptr;
   if (!deps) {
     EXPLAIN("deps for '%s' are missing", output->path().c_str());
     return false;
