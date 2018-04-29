@@ -117,9 +117,6 @@ BuildLog::LogEntry::LogEntry(const std::string& output, uint64_t command_hash,
     start_time(start_time), end_time(end_time), mtime(restat_mtime)
 {}
 
-BuildLog::BuildLog()
-  : log_file_(nullptr), needs_recompaction_(false) {}
-
 BuildLog::~BuildLog() {
   Close();
 }
@@ -192,7 +189,7 @@ void BuildLog::Close() {
 
 struct LineReader final {
   explicit LineReader(FILE* file)
-    : file_(file), buf_end_(buf_), line_start_(buf_), line_end_(nullptr) {
+    : file_(file) {
       memset(buf_, 0, sizeof(buf_));
   }
 
@@ -234,11 +231,11 @@ struct LineReader final {
  private:
   FILE* file_;
   char buf_[256 << 10];
-  char* buf_end_;  // Points one past the last valid byte in |buf_|.
+  char* buf_end_ = buf_;  // Points one past the last valid byte in |buf_|.
 
-  char* line_start_;
+  char* line_start_ = buf_;
   // Points at the next \n in buf_ after line_start, or nullptr.
-  char* line_end_;
+  char* line_end_ = nullptr;
 };
 
 bool BuildLog::Load(const std::string& path, std::string* err) {

@@ -62,19 +62,23 @@ struct Subprocess final {
   /// other end of the pipe, usable in the child process.
   HANDLE SetupPipe(HANDLE ioport);
 
-  HANDLE child_;
-  HANDLE pipe_;
+  HANDLE child_ = nullptr;
+  HANDLE pipe_  = nullptr;
   OVERLAPPED overlapped_;
   char overlapped_buf_[4 << 10];
-  bool is_reading_;
+  bool is_reading_ = false;
 #else
-  int fd_;
-  pid_t pid_;
+  int fd_ = -1;
+  pid_t pid_ = -1;
 #endif
   bool use_console_;
 
   friend struct SubprocessSet;
 };
+
+inline Subprocess::Subprocess(bool use_console)
+ : use_console_(use_console)
+{ }
 
 /// SubprocessSet runs a ppoll/pselect() loop around a set of Subprocesses.
 /// DoWork() waits for any state change in subprocesses; finished_

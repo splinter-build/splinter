@@ -98,9 +98,9 @@ struct Cleaner final {
   DyndepLoader dyndep_loader_;
   std::set<std::string> removed_;
   std::set<Node*> cleaned_;
-  int cleaned_files_count_;
+  int cleaned_files_count_ = 0;
   DiskInterface* disk_interface_;
-  int status_;
+  int status_ = 0;
 };
 
 #endif  // NINJA_CLEAN_H_
