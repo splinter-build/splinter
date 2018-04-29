@@ -25,7 +25,7 @@ struct Rule;
 
 /// An interface for a scope for variable (e.g. "$foo") lookups.
 struct Env {
-  virtual ~Env() {}
+  virtual ~Env() = default;
   virtual std::string LookupVariable(const std::string& var) = 0;
 };
 
@@ -79,10 +79,10 @@ struct Rule final {
 /// An Env which contains a mapping of variables to values
 /// as well as a pointer to a parent scope.
 struct BindingEnv final : public Env {
-  BindingEnv() : parent_(nullptr) {}
+  BindingEnv() = default;
   explicit BindingEnv(BindingEnv* parent) : parent_(parent) {}
 
-  ~BindingEnv() {}
+  ~BindingEnv() = default;
   std::string LookupVariable(const std::string& var) override final;
 
   void AddRule(const Rule* rule);
@@ -103,7 +103,7 @@ struct BindingEnv final : public Env {
 private:
   std::map<std::string, std::string> bindings_;
   std::map<std::string, const Rule*> rules_;
-  BindingEnv* parent_;
+  BindingEnv* parent_ = nullptr;
 };
 
 #endif  // NINJA_EVAL_ENV_H_

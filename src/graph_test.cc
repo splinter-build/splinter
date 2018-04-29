@@ -18,10 +18,10 @@
 #include "test.h"
 
 struct GraphTest : public StateTestWithBuiltinRules {
-  GraphTest() : scan_(&state_, nullptr, nullptr, &fs_, nullptr) {}
+  GraphTest() = default;
 
   VirtualFileSystem fs_;
-  DependencyScan scan_;
+  DependencyScan scan_{&state_, nullptr, nullptr, &fs_, nullptr};
 };
 
 TEST_F(GraphTest, MissingImplicit) {
