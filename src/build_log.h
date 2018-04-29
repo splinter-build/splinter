@@ -43,7 +43,7 @@ struct BuildLogUser {
 /// 2) timing information, perhaps for generating reports
 /// 3) restat information
 struct BuildLog final {
-  BuildLog();
+  BuildLog() = default;
   ~BuildLog();
 
   /// Prepares writing to the log file without actually opening it - that will
@@ -101,9 +101,9 @@ struct BuildLog final {
   bool OpenForWriteIfNeeded();
 
   Entries entries_;
-  FILE* log_file_;
+  FILE* log_file_ = nullptr;
   std::string log_file_path_;
-  bool needs_recompaction_;
+  bool needs_recompaction_ = false;
 };
 
 #endif // NINJA_BUILD_LOG_H_

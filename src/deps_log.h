@@ -66,7 +66,7 @@ struct State;
 /// wins, allowing updates to just be appended to the file.  A separate
 /// repacking step can run occasionally to remove dead records.
 struct DepsLog final {
-  DepsLog() : needs_recompaction_(false), file_(nullptr) {}
+  DepsLog() = default;
   ~DepsLog();
 
   // Writing (build-time) interface.
@@ -113,8 +113,8 @@ struct DepsLog final {
   /// be set.
   bool OpenForWriteIfNeeded();
 
-  bool needs_recompaction_;
-  FILE* file_;
+  bool needs_recompaction_ = false;
+  FILE* file_ = nullptr;
   std::string file_path_;
 
   /// Maps id -> Node.

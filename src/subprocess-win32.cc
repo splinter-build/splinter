@@ -21,11 +21,6 @@
 
 #include "util.h"
 
-Subprocess::Subprocess(bool use_console) : child_(nullptr) , overlapped_(),
-                                           is_reading_(false),
-                                           use_console_(use_console) {
-}
-
 Subprocess::~Subprocess() {
   if (pipe_) {
     if (!CloseHandle(pipe_))

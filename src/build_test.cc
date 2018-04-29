@@ -486,7 +486,7 @@ struct FakeCommandRunner final : public CommandRunner {
 };
 
 struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
-  BuildTest() : config_(MakeConfig()), command_runner_(&fs_),
+  BuildTest() : config_(MakeConfig()),
                 builder_(&state_, config_, nullptr, nullptr, &fs_),
                 status_(config_) {
   }
@@ -532,7 +532,7 @@ struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
   }
 
   BuildConfig config_;
-  FakeCommandRunner command_runner_;
+  FakeCommandRunner command_runner_{&fs_};
   VirtualFileSystem fs_;
   Builder builder_;
 
@@ -2102,7 +2102,7 @@ TEST_F(BuildWithQueryDepsLogTest, TwoOutputsDepFileGCCOnlySecondaryOutput) {
 /// builder_ it sets up, because we want pristine objects for
 /// each build.
 struct BuildWithDepsLogTest : public BuildTest {
-  BuildWithDepsLogTest() {}
+  BuildWithDepsLogTest() = default;
 
   void SetUp() override final {
     BuildTest::SetUp();
@@ -2117,7 +2117,7 @@ struct BuildWithDepsLogTest : public BuildTest {
   ScopedTempDir temp_dir_;
 
   /// Shadow parent class builder_ so we don't accidentally use it.
-  void* builder_;
+  void* builder_ = nullptr;
 };
 
 /// Run a straightforwad build where the deps log is used.

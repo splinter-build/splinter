@@ -65,7 +65,7 @@ int64_t GetTimeMillis();
 /// in seconds since Restart() was called.
 struct Stopwatch final {
  public:
-  Stopwatch() : started_(0) {}
+  Stopwatch() = default;
 
   /// Seconds since Restart() call.
   double Elapsed() const {
@@ -75,7 +75,7 @@ struct Stopwatch final {
   void Restart() { started_ = Now(); }
 
  private:
-  uint64_t started_;
+  uint64_t started_ = 0;
   uint64_t Now() const;
 };
 
