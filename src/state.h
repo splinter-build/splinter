@@ -39,7 +39,7 @@ struct Rule;
 /// completes).
 struct Pool final {
   Pool(const std::string& name, int depth)
-    : name_(name), current_use_(0), depth_(depth), delayed_() {}
+    : name_(name), depth_(depth) {}
 
   // A depth of 0 is infinite
   bool is_valid() const { return depth_ >= 0; }
@@ -72,7 +72,7 @@ struct Pool final {
 
   /// |current_use_| is the total of the weights of the edges which are
   /// currently scheduled in the Plan (i.e. the edges in Plan::ready_).
-  int current_use_;
+  int current_use_ = 0;
   int depth_;
 
   struct WeightedEdgeCmp {
