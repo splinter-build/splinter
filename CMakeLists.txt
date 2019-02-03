@@ -47,6 +47,9 @@ else()
 	add_library(libninja-re2c OBJECT src/depfile_parser.cc src/lexer.cc)
 endif()
 target_include_directories(libninja-re2c PRIVATE src)
+if(MSVC)
+target_compile_definitions(libninja-re2c PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
 
 # Core source files all build into ninja library.
 add_library(libninja OBJECT
@@ -90,6 +93,10 @@ endif()
 #Fixes GetActiveProcessorCount on MinGW
 if(MINGW)
 target_compile_definitions(libninja PRIVATE _WIN32_WINNT=0x0601 __USE_MINGW_ANSI_STDIO=1)
+endif()
+
+if(MSVC)
+target_compile_definitions(libninja PRIVATE _CRT_SECURE_NO_WARNINGS)
 endif()
 
 # Main executable is library plus main() function.
