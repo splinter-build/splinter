@@ -1,6 +1,7 @@
 version: 1.0.{build}
 image:
   - Visual Studio 2017
+  - Ubuntu1604
   - Ubuntu1804
 
 environment:
@@ -15,30 +16,38 @@ matrix:
   exclude:
     - image: Visual Studio 2017
       MSYSTEM: LINUX
+    - image: Ubuntu1604
+      MSYSTEM: MINGW64
+    - image: Ubuntu1604
+      MSYSTEM: MSVC
     - image: Ubuntu1804
       MSYSTEM: MINGW64
     - image: Ubuntu1804
       MSYSTEM: MSVC
 
 for:
-  -
-    matrix:
+  - matrix:
       only:
         - MSYSTEM: MINGW64
+    install:
+      ps: "C:\\msys64\\usr\\bin\\bash -lc \"pacman -S --quiet --noconfirm --needed re2c 2>&1\""
     build_script:
       ps: "C:\\msys64\\usr\\bin\\bash -lc @\"\n
-      pacman -S --quiet --noconfirm --needed re2c 2>&1\n
+      ./misc/ci.py 2>&1\n
       ./configure.py --bootstrap --platform mingw 2>&1\n
       ./ninja all\n
       ./ninja_test 2>&1\n
       ./misc/ninja_syntax_test.py 2>&1\n\"@"
-  -
-    matrix:
+
+  - matrix:
       only:
         - MSYSTEM: MSVC
+    install: cinst re2c
     build_script:
     - cmd: >-
         call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"
+
+        python misc/ci.py
 
         python configure.py --bootstrap
 
@@ -50,8 +59,22 @@ for:
 
   - matrix:
       only:
-        - image: Ubuntu1804
+        - image: Ubuntu1604
+    install: sudo apt install re2c
     build_script:
+      - ./misc/ci.py
+      - ./configure.py --bootstrap
+      - ./ninja all
+      - ./ninja_test
+      - misc/ninja_syntax_test.py
+      - misc/output_test.py
+
+  - matrix:
+      only:
+        - image: Ubuntu1804
+    install: sudo apt install re2c
+    build_script:
+      - ./misc/ci.py
       - ./configure.py --bootstrap
       - ./ninja all
       - ./ninja_test
