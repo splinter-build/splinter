@@ -50,6 +50,9 @@ else()
 	add_library(libninja-re2c OBJECT src/depfile_parser.cc src/lexer.cc)
 endif()
 target_include_directories(libninja-re2c PRIVATE src)
+if(MSVC)
+target_compile_definitions(libninja-re2c PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
 
 # --- Check for 'browse' mode support
 function(check_platform_supports_browse_mode RESULT)
