@@ -363,13 +363,13 @@ TEST(CanonicalizePath, NotNullTerminated) {
   len = strlen("foo/.");  // Canonicalize only the part before the space.
   EXPECT_TRUE(CanonicalizePath(&path[0], &len, &unused, &err));
   EXPECT_EQ(strlen("foo"), len);
-  EXPECT_EQ("foo/. bar/.", std::string(path));
+  EXPECT_EQ("foo/. bar/.", path);
 
   path = "foo/../file bar/.";
   len = strlen("foo/../file");
   EXPECT_TRUE(CanonicalizePath(&path[0], &len, &unused, &err));
   EXPECT_EQ(strlen("file"), len);
-  EXPECT_EQ("file ./file bar/.", std::string(path));
+  EXPECT_EQ("file ./file bar/.", path);
 }
 
 TEST(PathEscaping, TortureTest) {

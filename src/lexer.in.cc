@@ -18,6 +18,7 @@
 
 #include "eval_env.h"
 #include "util.h"
+#include "string_concat.h"
 
 bool Lexer::Error(const std::string& message, std::string* err) {
   // Compute line/column.
@@ -33,8 +34,7 @@ bool Lexer::Error(const std::string& message, std::string* err) {
 
   char buf[1024];
   snprintf(buf, sizeof(buf), "%s:%d: ", std::string(filename_).c_str(), line);
-  *err = buf;
-  *err += message + "\n";
+  *err = string_concat(buf, message, "\n");
 
   // Add some context to the message.
   const int kTruncateColumn = 72;
@@ -47,12 +47,14 @@ bool Lexer::Error(const std::string& message, std::string* err) {
         break;
       }
     }
-    *err += std::string(line_start, len);
-    if (truncated)
-      *err += "...";
-    *err += "\n";
-    *err += std::string(col, ' ');
-    *err += "^ near here";
+    if(truncated)
+    {
+      string_append(*err, std::string_view(line_start, len), "...", "\n", std::string(col, ' '), "^ near here");
+    }
+    else
+    {
+      string_append(*err, std::string_view(line_start, len), "\n", std::string(col, ' '), "^ near here");
+    }
   }
 
   return false;

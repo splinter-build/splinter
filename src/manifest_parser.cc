@@ -23,6 +23,7 @@
 #include "state.h"
 #include "util.h"
 #include "version.h"
+#include "string_concat.h"
 
 using namespace std;
 
@@ -86,7 +87,7 @@ bool ManifestParser::Parse(const std::string& filename, const std::string& input
     case Lexer::NEWLINE:
       break;
     default:
-      return lexer_.Error(std::string("unexpected ") + Lexer::TokenName(token),
+      return lexer_.Error(string_concat("unexpected ", Lexer::TokenName(token)),
                           err);
     }
   }
@@ -103,7 +104,7 @@ bool ManifestParser::ParsePool(std::string* err) {
     return false;
 
   if (state_->LookupPool(name) != nullptr)
-    return lexer_.Error("duplicate pool '" + name + "'", err);
+    return lexer_.Error(string_concat("duplicate pool '", name, "'"), err);
 
   int depth = -1;
 
@@ -119,7 +120,7 @@ bool ManifestParser::ParsePool(std::string* err) {
       if (depth < 0)
         return lexer_.Error("invalid pool depth", err);
     } else {
-      return lexer_.Error("unexpected variable '" + key + "'", err);
+      return lexer_.Error(string_concat("unexpected variable '", key, "'"), err);
     }
   }
 
@@ -140,7 +141,7 @@ bool ManifestParser::ParseRule(std::string* err) {
     return false;
 
   if (env_->LookupRuleCurrentScope(name) != nullptr)
-    return lexer_.Error("duplicate rule '" + name + "'", err);
+    return lexer_.Error(string_concat("duplicate rule '", name, "'"), err);
 
   Rule* rule = new Rule(name);  // XXX scoped_ptr
 
@@ -155,7 +156,7 @@ bool ManifestParser::ParseRule(std::string* err) {
     } else {
       // Die on other keyvals for now; revisit if we want to add a
       // scope here.
-      return lexer_.Error("unexpected variable '" + key + "'", err);
+      return lexer_.Error(string_concat("unexpected variable '", key, "'"), err);
     }
   }
 
@@ -251,7 +252,7 @@ bool ManifestParser::ParseEdge(std::string* err) {
 
   const Rule* rule = env_->LookupRule(rule_name);
   if (!rule)
-    return lexer_.Error("unknown build rule '" + rule_name + "'", err);
+    return lexer_.Error(string_concat("unknown build rule '", rule_name, "'"), err);
 
   for (;;) {
     // XXX should we require one path here?
@@ -314,7 +315,7 @@ bool ManifestParser::ParseEdge(std::string* err) {
   if (!pool_name.empty()) {
     Pool* pool = state_->LookupPool(pool_name);
     if (pool == nullptr)
-      return lexer_.Error("unknown pool name '" + pool_name + "'", err);
+      return lexer_.Error(string_concat("unknown pool name '", pool_name, "'"), err);
     edge->pool_ = pool;
   }
 
@@ -327,7 +328,7 @@ bool ManifestParser::ParseEdge(std::string* err) {
       return lexer_.Error(path_err, err);
     if (!state_->AddOut(edge, path, slash_bits)) {
       if (options_.dupe_edge_action_ == kDupeEdgeActionError) {
-        lexer_.Error("multiple rules generate " + path + " [-w dupbuild=err]",
+        lexer_.Error(string_concat("multiple rules generate ", path, " [-w dupbuild=err]"),
                      err);
         return false;
       } else {
@@ -398,7 +399,7 @@ bool ManifestParser::ParseEdge(std::string* err) {
     std::vector<Node*>::iterator dgi =
       std::find(edge->inputs_.begin(), edge->inputs_.end(), edge->dyndep_);
     if (dgi == edge->inputs_.end()) {
-      return lexer_.Error("dyndep '" + dyndep + "' is not an input", err);
+      return lexer_.Error(string_concat("dyndep '", dyndep, "' is not an input"), err);
     }
   }
 

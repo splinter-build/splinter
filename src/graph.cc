@@ -27,6 +27,7 @@
 #include "metrics.h"
 #include "state.h"
 #include "util.h"
+#include "string_concat.h"
 
 bool Node::Stat(DiskInterface* disk_interface, std::string* err) {
   return (mtime_ = disk_interface->Stat(path_, err)) != -1;
@@ -403,7 +404,7 @@ std::string Edge::EvaluateCommand(const bool incl_rsp_file) const {
   if (incl_rsp_file) {
     std::string rspfile_content = GetBinding("rspfile_content");
     if (!rspfile_content.empty())
-      command += ";rspfile=" + rspfile_content;
+      string_append(command, ";rspfile=", rspfile_content);
   }
   return command;
 }
@@ -549,7 +550,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const std::string& path,
     err->clear();
     break;
   case DiskInterface::OtherError:
-    *err = "loading '" + path + "': " + *err;
+    *err = string_concat("loading '", path, "': ", *err);
     return false;
   }
   // On a missing depfile: return false and empty *err.
@@ -563,7 +564,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const std::string& path,
                         : DepfileParserOptions());
   std::string depfile_err;
   if (!depfile.Parse(&content, &depfile_err)) {
-    *err = path + ": " + depfile_err;
+    *err = string_concat(path, ": ", depfile_err);
     return false;
   }
 
@@ -578,7 +579,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const std::string& path,
   size_t size = primary_out->size();
   if (!CanonicalizePath(const_cast<char*>(primary_out->data()),
                         &size, &unused, err)) {
-    *err = path + ": " + *err;
+    *err = string_concat(path, ": ", *err);
     // Only needed becasue CanonicalizePath wanting to modify the inputs...
     *primary_out = primary_out->substr(0, size);
     return false;
@@ -601,7 +602,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const std::string& path,
        o != depfile.outs_.end(); ++o) {
     matches m(o);
     if (std::find_if(edge->outputs_.begin(), edge->outputs_.end(), m) == edge->outputs_.end()) {
-      *err = path + ": depfile mentions '" + std::string(*o) + "' as an output, but no such output was declared";
+      *err = string_concat(path, ": depfile mentions '", *o, "' as an output, but no such output was declared");
       return false;
     }
   }

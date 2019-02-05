@@ -46,6 +46,7 @@
 #include "state.h"
 #include "util.h"
 #include "version.h"
+#include "string_concat.h"
 
 using namespace std;
 
@@ -289,7 +290,7 @@ Node* NinjaMain::CollectTarget(const char* cpath, std::string* err) {
   if (node) {
     if (first_dependent) {
       if (node->out_edges().empty()) {
-        *err = "'" + path + "' has no out edge";
+        *err = string_concat("'", path, "' has no out edge");
         return nullptr;
       }
       Edge* edge = node->out_edges()[0];
@@ -300,17 +301,24 @@ Node* NinjaMain::CollectTarget(const char* cpath, std::string* err) {
       node = edge->outputs_[0];
     }
     return node;
-  } else {
-    *err =
-        "unknown target '" + Node::PathDecanonicalized(path, slash_bits) + "'";
-    if (path == "clean") {
-      *err += ", did you mean 'ninja -t clean'?";
-    } else if (path == "help") {
-      *err += ", did you mean 'ninja -h'?";
-    } else {
+  }
+  else
+  {
+    *err = string_concat("unknown target '", Node::PathDecanonicalized(path, slash_bits), "'");
+    if(path == "clean")
+    {
+      string_append(*err, ", did you mean 'ninja -t clean'?");
+    }
+    else if(path == "help")
+    {
+      string_append(*err, ", did you mean 'ninja -h'?");
+    }
+    else
+    {
       Node* suggestion = state_.SpellcheckNode(path);
-      if (suggestion) {
-        *err += ", did you mean '" + suggestion->path() + "'?";
+      if(suggestion)
+      {
+          string_append(*err, ", did you mean '", suggestion->path(), "'?");
       }
     }
     return nullptr;
@@ -1112,7 +1120,7 @@ bool WarningEnable(const std::string& name, Options* options) {
 bool NinjaMain::OpenBuildLog(bool recompact_only) {
   std::string log_path = ".ninja_log";
   if (!build_dir_.empty())
-    log_path = build_dir_ + "/" + log_path;
+    log_path = string_concat(build_dir_, "/", log_path);
 
   std::string err;
   const LoadStatus status = build_log_.Load(log_path, &err);
@@ -1151,7 +1159,7 @@ bool NinjaMain::OpenBuildLog(bool recompact_only) {
 bool NinjaMain::OpenDepsLog(bool recompact_only) {
   std::string path = ".ninja_deps";
   if (!build_dir_.empty())
-    path = build_dir_ + "/" + path;
+    path = string_concat(build_dir_, "/", path);
 
   std::string err;
   const LoadStatus status = deps_log_.Load(path, &state_, &err);

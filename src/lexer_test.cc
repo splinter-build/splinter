@@ -25,8 +25,7 @@ TEST(Lexer, ReadVarValue) {
   std::string err;
   EXPECT_TRUE(lexer.ReadVarValue(&eval, &err));
   EXPECT_EQ("", err);
-  EXPECT_EQ("[plain text ][$var][ ][$VaR][ ][$x]",
-            eval.Serialize());
+  EXPECT_EQ("[plain text ][$var][ ][$VaR][ ][$x]", eval.Serialize());
 }
 
 TEST(Lexer, ReadEvalStringEscapes) {
