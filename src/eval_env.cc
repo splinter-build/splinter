@@ -113,11 +113,11 @@ void EvalString::AddText(StringPiece text) {
   if (!parsed_.empty() && parsed_.back().second == RAW) {
     parsed_.back().first.append(text.str_, text.len_);
   } else {
-    parsed_.push_back(make_pair(text.AsString(), RAW));
+    parsed_.emplace_back(text.AsString(), RAW);
   }
 }
 void EvalString::AddSpecial(StringPiece text) {
-  parsed_.push_back(make_pair(text.AsString(), SPECIAL));
+  parsed_.emplace_back(text.AsString(), SPECIAL);
 }
 
 std::string EvalString::Serialize() const {

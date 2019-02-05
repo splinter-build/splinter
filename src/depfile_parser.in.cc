@@ -166,7 +166,7 @@ bool DepfileParser::Parse(std::string* content, std::string* err) {
             continue;
           }
         }
-        ins_.push_back(StringPiece(filename, len));
+        ins_.emplace_back(filename, len);
       } else if (!out_.str_) {
         out_ = StringPiece(filename, len);
       } else if (out_ != StringPiece(filename, len)) {
