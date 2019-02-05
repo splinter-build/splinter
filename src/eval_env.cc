@@ -15,6 +15,7 @@
 #include <assert.h>
 
 #include "eval_env.h"
+#include "string_concat.h"
 
 std::string BindingEnv::LookupVariable(const std::string& var) {
   std::map<std::string, std::string>::iterator i = bindings_.find(var);
@@ -124,11 +125,14 @@ std::string EvalString::Serialize() const {
   std::string result;
   for (const auto & item : parsed_)
   {
-    result.append("[");
-    if (item.second == SPECIAL)
-      result.append("$");
-    result.append(item.first);
-    result.append("]");
+    if(item.second == SPECIAL)
+    {
+        string_append(result, "[$", item.first, "]");
+    }
+    else
+    {
+        string_append(result, "[", item.first, "]");
+    }
   }
   return result;
 }

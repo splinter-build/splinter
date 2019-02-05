@@ -17,6 +17,7 @@
 #include <string_view>
 #include "string_piece_util.h"
 #include "util.h"
+#include "string_concat.h"
 
 #include <algorithm>
 #include <iterator>
@@ -32,9 +33,7 @@ bool InternalGetFullPathName(std::string_view file_name, char* buffer,
   DWORD result_size = GetFullPathNameA(std::string(file_name).c_str(),
                                        buffer_length, buffer, nullptr);
   if (result_size == 0) {
-    *err = std::string("GetFullPathNameA(").append(file_name)
-                                           .append("): ")
-                                           .append(GetLastErrorString());
+    *err = string_concat("GetFullPathNameA(", file_name, "): ", GetLastErrorString());
     return false;
   } else if (result_size > buffer_length) {
     *err = "path too long";

@@ -15,17 +15,19 @@
 #ifndef NINJA_STRINGPIECE_UTIL_H_
 #define NINJA_STRINGPIECE_UTIL_H_
 
-#include <string>
 #include <vector>
-
 #include <string_view>
 
 std::vector<std::string_view> SplitStringPiece(std::string_view input, char sep);
 
 std::string JoinStringPiece(const std::vector<std::string_view>& list, char sep);
 
-constexpr char ToLowerASCII(char c) {
-  return (c >= 'A' && c <= 'Z') ? (c + ('a' - 'A')) : c;
+constexpr char ToLowerASCII(const char c)
+{
+  return   (   (c >= 'A')
+            && (c <= 'Z'))
+         ? (c + ('a' - 'A'))
+         : c;
 }
 
 bool EqualsCaseInsensitiveASCII(std::string_view a, std::string_view b);

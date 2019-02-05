@@ -23,6 +23,7 @@
 #include "graph.h"
 #include "state.h"
 #include "util.h"
+#include "string_concat.h"
 
 bool DyndepLoader::LoadDyndeps(Node* node, std::string* err) const {
   DyndepFile ddf;
@@ -47,9 +48,11 @@ bool DyndepLoader::LoadDyndeps(Node* node, DyndepFile* ddf,
 
     DyndepFile::iterator ddi = ddf->find(edge);
     if (ddi == ddf->end()) {
-      *err = ("'" + edge->outputs_[0]->path() + "' "
-              "not mentioned in its dyndep file "
-              "'" + node->path() + "'");
+      *err = string_concat("'",
+                           edge->outputs_[0]->path(),
+                           "' not mentioned in its dyndep file '",
+                           node->path(),
+                           "'");
       return false;
     }
 
@@ -64,9 +67,13 @@ bool DyndepLoader::LoadDyndeps(Node* node, DyndepFile* ddf,
   for (auto const& item : *ddf) {
     if (!item.second.used_) {
       Edge* const edge = item.first;
-      *err = ("dyndep file '" + node->path() + "' mentions output "
-              "'" + edge->outputs_[0]->path() + "' whose build statement "
-              "does not have a dyndep binding for the file");
+      *err = string_concat("dyndep file '",
+                           node->path(),
+                           "' mentions output ",
+                           "'",
+                           edge->outputs_[0]->path(),
+                           "' whose build statement ",
+                           "does not have a dyndep binding for the file");
       return false;
     }
   }

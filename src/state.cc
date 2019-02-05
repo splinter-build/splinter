@@ -21,6 +21,7 @@
 #include "graph.h"
 #include "metrics.h"
 #include "util.h"
+#include "string_concat.h"
 
 void Pool::EdgeScheduled(const Edge& edge) {
   if (depth_ != 0)
@@ -151,7 +152,7 @@ bool State::AddOut(Edge* edge, std::string_view path, uint64_t slash_bits) {
 bool State::AddDefault(std::string_view path, std::string* err) {
   Node* node = LookupNode(path);
   if (!node) {
-    *err = "unknown target '" + std::string(path) + "'";
+    *err = string_concat("unknown target '", path, "'");
     return false;
   }
   defaults_.push_back(node);

@@ -21,6 +21,7 @@
 #include "deps_log.h"
 #include "graph.h"
 #include "test.h"
+#include "string_concat.h"
 
 struct CompareEdgesByOutput {
   static bool cmp(const Edge* a, const Edge* b) {
@@ -278,8 +279,8 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
 ));
   // Mark all the out* nodes dirty
   for (int i = 0; i < 3; ++i) {
-    GetNode("out" + std::string(1, '1' + static_cast<char>(i)))->MarkDirty();
-    GetNode("outb" + std::string(1, '1' + static_cast<char>(i)))->MarkDirty();
+    GetNode(string_concat("out", std::string(1, '1' + static_cast<char>(i))))->MarkDirty();
+    GetNode(string_concat("outb", std::string(1, '1' + static_cast<char>(i))))->MarkDirty();
   }
   GetNode("allTheThings")->MarkDirty();
 
@@ -293,8 +294,7 @@ TEST_F(PlanTest, PoolsWithDepthTwo) {
   for (int i = 0; i < 4; ++i) {
     Edge *edge = edges[i];
     ASSERT_EQ("in",  edge->inputs_[0]->path());
-    std::string base_name(i < 2 ? "out" : "outb");
-    ASSERT_EQ(base_name + std::string(1, '1' + (i % 2)), edge->outputs_[0]->path());
+    ASSERT_EQ(string_concat(i < 2 ? "out" : "outb", std::string(1, '1' + (i % 2))), edge->outputs_[0]->path());
   }
 
   // outb3 is exempt because it has an empty pool
@@ -1799,7 +1799,7 @@ TEST_F(BuildTest, InterruptCleanup) {
 TEST_F(BuildTest, StatFailureAbortsBuild) {
   const std::string kTooLongToStat(400, 'i');
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-("build " + kTooLongToStat + ": cat in\n").c_str()));
+      string_concat("build ", kTooLongToStat, ": cat in\n").c_str()));
   fs_.Create("in", "");
 
   // This simulates a stat failure:

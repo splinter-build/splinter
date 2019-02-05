@@ -40,6 +40,7 @@
 #include "state.h"
 #include "subprocess.h"
 #include "util.h"
+#include "string_concat.h"
 
 namespace {
 
@@ -138,9 +139,9 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
       outputs += item->path() + " ";
 
     if (printer_.supports_color()) {
-        printer_.PrintOnNewLine("\x1B[31m" "FAILED: " "\x1B[0m" + outputs + "\n");
+        printer_.PrintOnNewLine(string_concat("\x1B[31m" "FAILED: " "\x1B[0m", outputs, "\n"));
     } else {
-        printer_.PrintOnNewLine("FAILED: " + outputs + "\n");
+        printer_.PrintOnNewLine(string_concat("FAILED: ", outputs, "\n"));
     }
     printer_.PrintOnNewLine(edge->EvaluateCommand() + "\n");
   }
@@ -325,12 +326,16 @@ bool Plan::AddSubTarget(const Node* node, const Node* dependent, std::string* er
                         std::set<Edge*>* dyndep_walk) {
   Edge* edge = node->in_edge();
   if (!edge) {  // Leaf node.
-    if (node->dirty()) {
-      std::string referenced;
-      if (dependent)
-        referenced = ", needed by '" + dependent->path() + "',";
-      *err = "'" + node->path() + "'" + referenced + " missing "
-             "and no known rule to make it";
+    if (node->dirty())
+    {
+      if(dependent)
+      {
+        *err = string_concat("'", node->path(), "', needed by '", dependent->path(), "', missing and no known rule to make it");
+      }
+      else
+      {
+        *err = string_concat("'", node->path(), "'", " missing and no known rule to make it");
+      }
     }
     return false;
   }
@@ -760,7 +765,7 @@ void Builder::Cleanup() {
 Node* Builder::AddTarget(const std::string& name, std::string* err) {
   Node* node = state_->LookupNode(name);
   if (!node) {
-    *err = "unknown target: '" + name + "'";
+    *err = string_concat("unknown target: '", name, "'");
     return nullptr;
   }
   if (!AddTarget(node, err))
@@ -907,7 +912,7 @@ bool Builder::StartEdge(Edge* edge, std::string* err) {
 
   // start command computing and run it
   if (!command_runner_->StartCommand(edge)) {
-    err->assign("command '" + edge->EvaluateCommand() + "' failed.");
+    *err = string_concat("command '", edge->EvaluateCommand(), "' failed.");
     return false;
   }
 
@@ -1011,7 +1016,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, std::string* err) {
   if (scan_.build_log()) {
     if (!scan_.build_log()->RecordCommand(edge, start_time, end_time,
                                           output_mtime)) {
-      *err = std::string("Error writing to build log: ") + strerror(errno);
+      *err = string_concat("Error writing to build log: ", strerror(errno));
       return false;
     }
   }
@@ -1027,7 +1032,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, std::string* err) {
 
       if( ! scan_.deps_log()->RecordDeps(output, deps_mtime, deps_nodes))
       {
-        *err = std::string("Error writing to deps log: ") + strerror(errno);
+        *err = string_concat("Error writing to deps log: ", strerror(errno));
         return false;
       }
     }
@@ -1105,7 +1110,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     {
       if (disk_interface_->RemoveFile(depfile) < 0)
       {
-        *err = std::string("deleting depfile: ") + strerror(errno) + std::string("\n");
+        *err = string_concat("deleting depfile: ", strerror(errno), "\n");
         return false;
       }
     }
