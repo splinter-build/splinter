@@ -99,7 +99,7 @@ void BuildStatus::PlanHasTotalEdges(int total) {
 void BuildStatus::BuildEdgeStarted(const Edge* edge) {
   assert(running_edges_.find(edge) == running_edges_.end());
   int start_time = (int)(GetTimeMillis() - start_time_millis_);
-  running_edges_.insert(std::make_pair(edge, start_time));
+  running_edges_.emplace(edge, start_time);
   ++started_edges_;
 
   if (edge->use_console() || printer_.is_smart_terminal())
@@ -342,7 +342,7 @@ bool Plan::AddSubTarget(const Node* node, const Node* dependent, std::string* er
   // If an entry in want_ does not already exist for edge, create an entry which
   // maps to kWantNothing, indicating that we do not want to build this entry itself.
   std::pair<std::map<Edge*, Want>::iterator, bool> want_ins =
-    want_.insert(std::make_pair(edge, kWantNothing));
+    want_.emplace(edge, kWantNothing);
   Want& want = want_ins.first->second;
 
   if (dyndep_walk && want == kWantToFinish)
@@ -695,7 +695,7 @@ bool RealCommandRunner::StartCommand(Edge* edge) {
   Subprocess* subproc = subprocs_.Add(command, edge->use_console());
   if (!subproc)
     return false;
-  subproc_to_edge_.insert(std::make_pair(subproc, edge));
+  subproc_to_edge_.emplace(subproc, edge);
 
   return true;
 }

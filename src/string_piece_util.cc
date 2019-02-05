@@ -27,10 +27,10 @@ std::vector<StringPiece> SplitStringPiece(StringPiece input, char sep) {
   for (;;) {
     const char* next_pos = std::find(pos, input.end(), sep);
     if (next_pos == input.end()) {
-      elems.push_back(StringPiece(pos, input.end() - pos));
+      elems.emplace_back(pos, input.end() - pos);
       break;
     }
-    elems.push_back(StringPiece(pos, next_pos - pos));
+    elems.emplace_back(pos, next_pos - pos);
     pos = next_pos + 1;
   }
 

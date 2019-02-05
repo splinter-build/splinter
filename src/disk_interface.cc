@@ -116,15 +116,14 @@ bool StatAllFilesInDir(const std::string& dir, std::map<std::string, TimeStamp>*
     return false;
   }
   do {
-    std::string lowername = ffd.cFileName;
-    if (lowername == "..") {
+    if (ffd.cFileName[0] == '.' && ffd.cFileName[1] == '.') {
       // Seems to just copy the timestamp for ".." from ".", which is wrong.
       // This is the case at least on NTFS under Windows 7.
       continue;
     }
+    std::string lowername = ffd.cFileName;
     std::transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
-    stamps->insert(make_pair(lowername,
-                             TimeStampFromFileTime(ffd.ftLastWriteTime)));
+    stamps->emplace(std::move(lowername), TimeStampFromFileTime(ffd.ftLastWriteTime));
   } while (FindNextFileA(find_handle, &ffd));
   FindClose(find_handle);
   return true;
@@ -185,7 +184,7 @@ TimeStamp RealDiskInterface::Stat(const std::string& path, std::string* err) con
 
   Cache::iterator ci = cache_.find(dir);
   if (ci == cache_.end()) {
-    ci = cache_.insert(make_pair(dir, DirCache())).first;
+    ci = cache_.emplace(dir, DirCache()).first;
     if (!StatAllFilesInDir(dir.empty() ? "." : dir, &ci->second, err)) {
       cache_.erase(ci);
       return -1;
