@@ -21,6 +21,7 @@
 #include "deps_log.h"
 #include "graph.h"
 #include "test.h"
+#include "string_concat.h"
 
 struct CompareEdgesByOutput {
   static bool cmp(const Edge* a, const Edge* b) {
@@ -1784,7 +1785,7 @@ TEST_F(BuildTest, InterruptCleanup) {
 TEST_F(BuildTest, StatFailureAbortsBuild) {
   const std::string kTooLongToStat(400, 'i');
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-("build " + kTooLongToStat + ": cat in\n").c_str()));
+      string_concat("build ", kTooLongToStat, ": cat in\n").c_str()));
   fs_.Create("in", "");
 
   // This simulates a stat failure:

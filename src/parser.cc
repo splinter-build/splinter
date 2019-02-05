@@ -16,6 +16,7 @@
 
 #include "disk_interface.h"
 #include "metrics.h"
+#include "string_concat.h"
 
 bool Parser::Load(const std::string& filename, std::string* err, Lexer* parent) {
   METRIC_RECORD(".ninja parse");
@@ -23,7 +24,7 @@ bool Parser::Load(const std::string& filename, std::string* err, Lexer* parent) 
   std::string read_err;
   if (file_reader_->ReadFile(filename, &contents, &read_err) !=
       FileReader::Okay) {
-    *err = "loading '" + filename + "': " + read_err;
+    *err = string_concat("loading '", filename, "': ", read_err);
     if (parent)
       parent->Error(std::string(*err), err);
     return false;
