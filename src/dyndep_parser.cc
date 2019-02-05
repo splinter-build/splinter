@@ -21,6 +21,7 @@
 #include "state.h"
 #include "util.h"
 #include "version.h"
+#include "string_concat.h"
 
 using namespace std;
 
@@ -51,7 +52,7 @@ bool DyndepParser::Parse(const std::string& filename, const std::string& input,
     case Lexer::IDENT: {
       lexer_.UnreadToken();
       if (haveDyndepVersion)
-        return lexer_.Error(std::string("unexpected ") + Lexer::TokenName(token),
+        return lexer_.Error(string_concat("unexpected ", Lexer::TokenName(token)),
                             err);
       if (!ParseDyndepVersion(err))
         return false;
@@ -67,7 +68,7 @@ bool DyndepParser::Parse(const std::string& filename, const std::string& input,
     case Lexer::NEWLINE:
       break;
     default:
-      return lexer_.Error(std::string("unexpected ") + Lexer::TokenName(token),
+      return lexer_.Error(string_concat("unexpected ", Lexer::TokenName(token)),
                           err);
     }
   }
@@ -87,7 +88,7 @@ bool DyndepParser::ParseDyndepVersion(std::string* err) {
   ParseVersion(version, &major, &minor);
   if (major != 1 || minor != 0) {
     return lexer_.Error(
-      std::string("unsupported 'ninja_dyndep_version = ") + version + "'", err);
+      string_concat("unsupported 'ninja_dyndep_version = ", version, "'"), err);
     return false;
   }
   return true;
@@ -121,12 +122,12 @@ bool DyndepParser::ParseEdge(std::string* err) {
       return lexer_.Error(path_err, err);
     Node* node = state_->LookupNode(path);
     if (!node || !node->in_edge())
-      return lexer_.Error("no build statement exists for '" + path + "'", err);
+      return lexer_.Error(string_concat("no build statement exists for '", path, "'"), err);
     Edge* edge = node->in_edge();
     std::pair<DyndepFile::iterator, bool> res =
       dyndep_file_->emplace(edge, Dyndeps());
     if (!res.second)
-      return lexer_.Error("multiple statements for '" + path + "'", err);
+      return lexer_.Error(string_concat("multiple statements for '", path, "'"), err);
     dyndeps = &res.first->second;
   }
 

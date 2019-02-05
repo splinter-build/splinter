@@ -425,7 +425,7 @@ TEST_F(ParserTest, Errors) {
     State local_state;
     ManifestParser parser(&local_state, nullptr);
     std::string err;
-    EXPECT_FALSE(parser.ParseTest(std::string("subn", 4), &err));
+    EXPECT_FALSE(parser.ParseTest("subn", &err));
     EXPECT_EQ("input:1: expected '=', got eof\n"
               "subn\n"
               "    ^ near here"

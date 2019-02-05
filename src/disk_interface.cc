@@ -32,6 +32,7 @@
 
 #include "metrics.h"
 #include "util.h"
+#include "string_concat.h"
 
 using namespace std;
 
@@ -79,7 +80,7 @@ TimeStamp StatSingleFile(const std::string& path, std::string* err) {
     DWORD win_err = GetLastError();
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
       return 0;
-    *err = "GetFileAttributesEx(" + path + "): " + GetLastErrorString();
+    *err = string_concat("GetFileAttributesEx(", path, "): ", GetLastErrorString());
     return -1;
   }
   return TimeStampFromFileTime(attrs.ftLastWriteTime);
@@ -112,7 +113,7 @@ bool StatAllFilesInDir(const std::string& dir, std::map<std::string, TimeStamp>*
     DWORD win_err = GetLastError();
     if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
       return true;
-    *err = "FindFirstFileExA(" + dir + "): " + GetLastErrorString();
+    *err = string_concat("FindFirstFileExA(", dir, "): ", GetLastErrorString());
     return false;
   }
   do {
@@ -197,7 +198,7 @@ TimeStamp RealDiskInterface::Stat(const std::string& path, std::string* err) con
   if (stat(path.c_str(), &st) < 0) {
     if (errno == ENOENT || errno == ENOTDIR)
       return 0;
-    *err = "stat(" + path + "): " + strerror(errno);
+    *err = string_concat("stat(", path, "): ", strerror(errno));
     return -1;
   }
   // Some users (Flatpak) set mtime to 0, this should be harmless

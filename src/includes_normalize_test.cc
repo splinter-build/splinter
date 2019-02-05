@@ -21,6 +21,7 @@
 #include "string_piece_util.h"
 #include "test.h"
 #include "util.h"
+#include "string_concat.h"
 
 using namespace std;
 
@@ -66,9 +67,9 @@ TEST(IncludesNormalize, WithRelative) {
   EXPECT_EQ("a",
             NormalizeAndCheckNoError(IncludesNormalize::AbsPath("a", &err)));
   EXPECT_EQ("", err);
-  EXPECT_EQ(std::string("../") + currentdir + std::string("/a"),
+  EXPECT_EQ(string_concat("../", currentdir, "/a"),
             NormalizeRelativeAndCheckNoError("a", "../b"));
-  EXPECT_EQ(std::string("../") + currentdir + std::string("/a/b"),
+  EXPECT_EQ(string_concat("../", currentdir, "/a/b"),
             NormalizeRelativeAndCheckNoError("a/b", "../c"));
   EXPECT_EQ("../../a", NormalizeRelativeAndCheckNoError("a", "b/c"));
   EXPECT_EQ(".", NormalizeRelativeAndCheckNoError("a", "a"));

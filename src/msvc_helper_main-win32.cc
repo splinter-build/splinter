@@ -21,7 +21,7 @@
 
 #include "clparser.h"
 #include "util.h"
-
+#include "string_concat.h"
 #include "getopt.h"
 
 using namespace std;
@@ -51,7 +51,7 @@ void PushPathIntoEnvironment(const std::string& env_block) {
 }
 
 void WriteDepFileOrDie(const char* object_path, const CLParser& parse) {
-  std::string depfile_path = std::string(object_path) + ".d";
+  std::string depfile_path = string_concat(object_path, ".d");
   FILE* depfile = fopen(depfile_path.c_str(), "w");
   if (!depfile) {
     unlink(object_path);
