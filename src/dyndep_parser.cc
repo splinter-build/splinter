@@ -124,11 +124,12 @@ bool DyndepParser::ParseEdge(std::string* err) {
     if (!node || !node->in_edge())
       return lexer_.Error(string_concat("no build statement exists for '", path, "'"), err);
     Edge* edge = node->in_edge();
-    std::pair<DyndepFile::iterator, bool> res =
-      dyndep_file_->emplace(edge, Dyndeps());
-    if (!res.second)
+    auto const& [it, success] = dyndep_file_->emplace(edge, Dyndeps{});
+    if ( ! success)
+    {
       return lexer_.Error(string_concat("multiple statements for '", path, "'"), err);
-    dyndeps = &res.first->second;
+    }
+    dyndeps = &(it->second);
   }
 
   // Disallow explicit outputs.

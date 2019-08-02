@@ -66,9 +66,8 @@ bool DyndepLoader::LoadDyndeps(Node* node, DyndepFile* ddf,
   }
 
   // Reject extra outputs in dyndep file.
-  for (auto const& item : *ddf) {
-    if (!item.second.used_) {
-      Edge* const edge = item.first;
+  for (auto const& [edge, dyndep] : *ddf) {
+    if (!dyndep.used_) {
       *err = string_concat("dyndep file '",
                            node->path(),
                            "' mentions output ",
