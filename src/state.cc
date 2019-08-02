@@ -123,13 +123,13 @@ Node* State::SpellcheckNode(const std::string& path) {
 
   int min_distance = kMaxValidEditDistance + 1;
   Node* result = nullptr;
-  for (const auto & item : paths_)
+  for (auto const& [pathKey, node] : paths_)
   {
-    int distance = EditDistance(item.first, path, kAllowReplacements, kMaxValidEditDistance);
-    if (distance < min_distance && item.second)
+    int distance = EditDistance(pathKey, path, kAllowReplacements, kMaxValidEditDistance);
+    if (distance < min_distance && node)
     {
       min_distance = distance;
-      result = item.second;
+      result = node;
     }
   }
   return result;

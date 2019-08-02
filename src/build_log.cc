@@ -385,22 +385,24 @@ bool BuildLog::Recompact(const std::string& path, const BuildLogUser& user,
   }
 
   std::vector<std::string_view> dead_outputs;
-  for (const auto & item : entries_)
+  for (auto const& [path, entry] : entries_)
   {
-    if (user.IsPathDead(item.first)) {
-      dead_outputs.push_back(item.first);
+    if (user.IsPathDead(path)) {
+      dead_outputs.push_back(path);
       continue;
     }
 
-    if (!WriteEntry(f, *(item.second))) {
+    if (!WriteEntry(f, *entry)) {
       *err = strerror(errno);
       fclose(f);
       return false;
     }
   }
 
-  for (size_t i = 0; i < dead_outputs.size(); ++i)
-    entries_.erase(dead_outputs[i]);
+  for (auto const& item : dead_outputs)
+  {
+    entries_.erase(item);
+  }
 
   fclose(f);
   if (unlink(path.c_str()) < 0) {

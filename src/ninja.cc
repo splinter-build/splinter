@@ -617,10 +617,9 @@ int NinjaMain::ToolRules(const Options* options, int argc, char* argv[]) {
 
   typedef std::map<std::string, const Rule*> Rules;
   const Rules& rules = state_.bindings_.GetRules();
-  for (auto const& item : rules) {
-    printf("%s", item.first.c_str());
+  for (auto const& [name, rule] : rules) {
+    printf("%s", name.c_str());
     if (print_description) {
-      const Rule* rule = item.second;
       const EvalString* description = rule->GetBinding("description");
       if (description != nullptr) {
         printf(": %s", description->Unparse().c_str());
@@ -635,7 +634,7 @@ enum PrintCommandMode { PCM_Single, PCM_All };
 void PrintCommands(Edge* edge, std::set<Edge*>* seen, PrintCommandMode mode) {
   if (!edge)
     return;
-  if (!seen->insert(edge).second)
+  if (auto const& [it, success] = seen->insert(edge); ! success)
     return;
 
   if (mode == PCM_All) {
