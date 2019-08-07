@@ -17,6 +17,8 @@
 
 #include <algorithm>
 
+// clang-format off
+
 DepfileParser::DepfileParser(DepfileParserOptions options)
   : options_(options)
 {

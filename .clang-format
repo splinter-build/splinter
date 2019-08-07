@@ -16,11 +16,176 @@
 # Still use your best judgement for formatting decisions: clang-format
 # sometimes makes strange choices.
 
-BasedOnStyle: Google
-AllowShortFunctionsOnASingleLine: Inline
-AllowShortIfStatementsOnASingleLine: false
+# Based on the Clang-7.0 documentation
+
+Language: Cpp
+Standard: Cpp03
+DisableFormat: false
+
+AccessModifierOffset: -2
+
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: false
+#AlignConsecutiveBitFields: false
+AlignConsecutiveDeclarations: false
+AlignConsecutiveMacros: false
+AlignEscapedNewlines: Left
+AlignOperands: true
+AlignTrailingComments: true
+
+AllowAllArgumentsOnNextLine: false
+AllowAllConstructorInitializersOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+
+AllowShortBlocksOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: true
+#AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLambdasOnASingleLine: All
 AllowShortLoopsOnASingleLine: false
+
+AlwaysBreakAfterDefinitionReturnType: None
+AlwaysBreakAfterReturnType: None
+AlwaysBreakBeforeMultilineStrings: false
+AlwaysBreakTemplateDeclarations: Yes
+
+#AttributeMacros:
+
+BinPackArguments: true
+BinPackParameters: true
+
+#BitFieldColonSpacing: None
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: false
+  AfterClass: true
+  AfterControlStatement: Never
+  AfterEnum: false
+  AfterFunction: false
+  AfterNamespace: false
+#  AfterObjCDeclaration
+  AfterStruct: false
+  AfterUnion: false
+  AfterExternBlock: false
+  BeforeCatch: false
+  BeforeElse: false
+#  BeforeLambdaBody: false
+#  BeforeWhile: false
+  IndentBraces: false
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: false
+
+#BreakAfterJavaFieldAnnotations
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: false
+BreakConstructorInitializers: BeforeColon
+BreakInheritanceList: BeforeColon
+BreakStringLiterals: true
+
+ColumnLimit: 80
+
+CommentPragmas: ''
+
+CompactNamespaces: true
 ConstructorInitializerAllOnOneLineOrOnePerLine: false
+ConstructorInitializerIndentWidth: 4
+ContinuationIndentWidth: 4
+
 Cpp11BracedListStyle: false
-IndentCaseLabels: false
-DerivePointerBinding: false
+
+DeriveLineEnding: true
+DerivePointerAlignment: false
+
+FixNamespaceComments: false
+
+ForEachMacros: ['']
+
+IncludeBlocks: Preserve
+
+IncludeCategories:
+  - Regex:           '^<.*'
+    Priority:        1
+  - Regex:           '^".*'
+    Priority:        2
+
+IncludeIsMainRegex: "(_test)?$"
+#IncludeIsMainSourceRegex:
+
+#IndentCaseBlocks: false
+IndentCaseLabels: true
+#IndentExternBlock: false
+IndentGotoLabels: false
+IndentPPDirectives: None
+IndentWidth: 2
+IndentWrappedFunctionNames: true
+
+#InsertTrailingCommas: false
+
+#JavaImportGroups
+#JavaScriptQuotes
+#JavaScriptWrapImports
+
+KeepEmptyLinesAtTheStartOfBlocks: false
+
+MacroBlockBegin: ''
+MacroBlockEnd: ''
+
+MaxEmptyLinesToKeep: 2
+NamespaceIndentation: None
+#NamespaceMacros:
+
+#ObjCBinPackProtocolList
+#ObjCBlockIndentWidth
+#ObjCBreakBeforeNestedBlockParam
+#ObjCSpaceAfterProperty
+#ObjCSpaceBeforeProtocolList
+
+#PenaltyBreakAssignment
+#PenaltyBreakBeforeFirstCallParameter: 100
+#PenaltyBreakComment: 100
+#PenaltyBreakFirstLessLess: 0
+#PenaltyBreakString: 100
+#PenaltyBreakTemplateDeclaration
+#PenaltyExcessCharacter: 1
+#PenaltyReturnTypeOnItsOwnLine: 20
+
+PointerAlignment: Left
+
+#RawStringFormats:
+
+ReflowComments: false
+
+SortIncludes: false
+#SortJavaStaticImport
+SortUsingDeclarations: false
+
+SpaceAfterCStyleCast: true
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: false
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceBeforeSquareBrackets: false
+SpaceInEmptyBlock: true
+SpaceInEmptyParentheses: false
+SpacesBeforeTrailingComments: 2
+SpacesInAngles: false
+SpacesInCStyleCastParentheses: false
+SpacesInConditionalStatement: false
+SpacesInContainerLiterals: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+#StatementMacros
+TabWidth: 2
+#TypenameMacros
+#UseCRLF
+UseTab: Never
+
+#WhitespaceSensitiveMacros

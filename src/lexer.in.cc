@@ -19,6 +19,8 @@
 #include "eval_env.h"
 #include "util.h"
 
+// clang-format off
+
 bool Lexer::Error(const string& message, string* err) {
   // Compute line/column.
   int line = 1;
@@ -70,6 +72,7 @@ void Lexer::Start(StringPiece filename, StringPiece input) {
 }
 
 const char* Lexer::TokenName(Token t) {
+  // clang-format off
   switch (t) {
   case ERROR:    return "lexing error";
   case BUILD:    return "'build'";
@@ -87,6 +90,7 @@ const char* Lexer::TokenName(Token t) {
   case SUBNINJA: return "'subninja'";
   case TEOF:     return "eof";
   }
+  // clang-format on
   return NULL;  // not reached
 }
 
