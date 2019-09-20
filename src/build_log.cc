@@ -158,11 +158,13 @@ bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
   for (const auto & item : edge->outputs_)
   {
     const std::string& path = item->path();
-    Entries::iterator i = entries_.find(path);
     LogEntry* log_entry;
-    if (i != entries_.end()) {
+    if(auto const& i = entries_.find(path); i != entries_.end())
+    {
       log_entry = i->second;
-    } else {
+    }
+    else
+    {
       log_entry = new LogEntry(path);
       entries_.emplace(log_entry->output, log_entry);
     }
@@ -199,14 +201,21 @@ struct LineReader final {
   // *line_end points to the \n at the end of the line. If no newline is seen
   // in a fixed buffer size, *line_end is set to nullptr. Returns false on EOF.
   bool ReadLine(char** line_start, char** line_end) {
-    if (line_start_ >= buf_end_ || !line_end_) {
+    if (line_start_ >= buf_end_ || !line_end_)
+    {
       // Buffer empty, refill.
-      size_t size_read = fread(buf_, 1, sizeof(buf_), file_);
-      if (!size_read)
+      if(size_t const size_read = fread(buf_, 1, sizeof(buf_), file_); 0 != size_read)
+      {
+        line_start_ = buf_;
+        buf_end_ = buf_ + size_read;
+      }
+      else
+      {
         return false;
-      line_start_ = buf_;
-      buf_end_ = buf_ + size_read;
-    } else {
+      }
+    }
+    else
+    {
       // Advance to next line in buffer.
       line_start_ = line_end_ + 1;
     }

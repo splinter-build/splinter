@@ -363,8 +363,10 @@ bool Plan::AddSubTarget(const Node* node, const Node* dependent, std::string* er
   if (dyndep_walk)
     dyndep_walk->insert(edge);
 
-  if (!success)
+  if( ! success)
+  {
     return true;  // We've already processed the inputs.
+  }
 
   for (const auto & item : edge->inputs_)
   {
@@ -404,11 +406,14 @@ void Plan::ScheduleWork(std::map<Edge*, Want>::iterator want_e) {
   want_e->second = kWantToFinish;
 
   Edge* edge = want_e->first;
-  Pool* pool = edge->pool();
-  if (pool->ShouldDelayEdge()) {
+  if(Pool* pool = edge->pool();
+     pool->ShouldDelayEdge())
+  {
     pool->DelayEdge(edge);
     pool->RetrieveReadyEdges(&ready_);
-  } else {
+  }
+  else
+  {
     pool->EdgeScheduled(*edge);
     ready_.insert(edge);
   }
@@ -454,27 +459,33 @@ bool Plan::NodeFinished(Node* node, std::string* err) {
   }
 
   // See if we we want any edges from this node.
-  for (const auto & item : node->out_edges()) {
-    std::map<Edge*, Want>::iterator want_e = want_.find(item);
-    if (want_e == want_.end())
-      continue;
-
-    // See if the edge is now ready.
-    if (!EdgeMaybeReady(want_e, err))
-      return false;
+  for(const auto & item : node->out_edges())
+  {
+    if(auto const& want_e = want_.find(item);
+       want_e != want_.end())
+    {
+      // See if the edge is now ready.
+      if( ! EdgeMaybeReady(want_e, err))
+      {
+        return false;
+      }
+    }
   }
   return true;
 }
 
 bool Plan::EdgeMaybeReady(std::map<Edge*, Want>::iterator want_e, std::string* err) {
-  Edge* edge = want_e->first;
-  if (edge->AllInputsReady()) {
-    if (want_e->second != kWantNothing) {
+  if(Edge* edge = want_e->first;
+     edge->AllInputsReady())
+  {
+    if(want_e->second != kWantNothing)
+    {
       ScheduleWork(want_e);
-    } else {
-      // We do not need to build this edge, but we might need to build one of
-      // its dependents.
-      if (!EdgeFinished(edge, kEdgeSucceeded, err))
+    }
+    // We do not need to build this edge, but we might need to build one of
+    // its dependents.
+    else if( ! EdgeFinished(edge, kEdgeSucceeded, err))
+    {
         return false;
     }
   }
@@ -497,9 +508,8 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, std::string* err) {
 
     // If all non-order-only inputs for this edge are now clean,
     // we might have changed the dirty state of the outputs.
-    std::vector<Node*>::iterator
-        begin = item->inputs_.begin(),
-        end = item->inputs_.end() - item->order_only_deps_;
+    auto const& begin = item->inputs_.begin();
+    auto const& end = item->inputs_.end() - item->order_only_deps_;
     if (std::find_if(begin, end, std::mem_fn(&Node::dirty)) == end) {
       // Recompute most_recent_input.
       Node* most_recent_input = nullptr;
@@ -554,12 +564,12 @@ bool Plan::DyndepsLoaded(DependencyScan* scan, const Node* node,
     if (edge->outputs_ready())
       continue;
 
-    std::map<Edge*, Want>::iterator want_e = want_.find(edge);
-
     // If the edge has not been encountered before then nothing already in the
     // plan depends on it so we do not need to consider the edge yet either.
-    if (want_e == want_.end())
+    if(want_.end() == want_.find(edge))
+    {
       continue;
+    }
 
     // This edge is already in the plan so queue it for the walk.
     dyndep_roots.push_back(oe);
@@ -577,20 +587,22 @@ bool Plan::DyndepsLoaded(DependencyScan* scan, const Node* node,
 
   // Add out edges from this node that are in the plan (just as
   // Plan::NodeFinished would have without taking the dyndep code path).
-  for (auto const& item : node->out_edges()) {
-    std::map<Edge*, Want>::iterator want_e = want_.find(item);
-    if (want_e == want_.end())
-      continue;
-    dyndep_walk.insert(want_e->first);
+  for(auto const& item : node->out_edges())
+  {
+    if(auto const& want_e = want_.find(item); want_e != want_.end())
+    {
+      dyndep_walk.insert(want_e->first);
+    }
   }
 
   // See if any encountered edges are now ready.
-  for (auto const& item : dyndep_walk) {
-    std::map<Edge*, Want>::iterator want_e = want_.find(item);
-    if (want_e == want_.end())
-      continue;
-    if (!EdgeMaybeReady(want_e, err))
+  for (auto const& item : dyndep_walk)
+  {
+    if(auto const& want_e = want_.find(item);
+       (want_e != want_.end()) && ! EdgeMaybeReady(want_e, err))
+    {
       return false;
+    }
   }
 
   return true;
@@ -628,16 +640,22 @@ bool Plan::RefreshDyndepDependents(DependencyScan* scan, const Node* node,
 }
 
 void Plan::UnmarkDependents(const Node* node, std::set<Node*>* dependents) {
-  for (auto const& edge : node->out_edges()) {
-    std::map<Edge*, Want>::iterator want_e = want_.find(edge);
-    if (want_e == want_.end())
+  for(auto const& edge : node->out_edges())
+  {
+    if(want_.end() == want_.find(edge))
+    {
       continue;
+    }
 
-    if (edge->mark_ != Edge::VisitNone) {
+    if(edge->mark_ != Edge::VisitNone)
+    {
       edge->mark_ = Edge::VisitNone;
-      for (auto const& item : edge->outputs_) {
-        if (auto const& [it, success] = dependents->insert(item); success)
+      for(auto const& item : edge->outputs_)
+      {
+        if(auto const& [it, success] = dependents->insert(item); success)
+        {
           UnmarkDependents(item, dependents);
+        }
       }
     }
   }
@@ -762,23 +780,34 @@ void Builder::Cleanup() {
 }
 
 Node* Builder::AddTarget(const std::string& name, std::string* err) {
-  Node* node = state_->LookupNode(name);
-  if (!node) {
+  if(Node* node = state_->LookupNode(name); node)
+  {
+    if(AddTarget(node, err))
+    {
+      return node;
+    }
+    else
+    {
+      return nullptr;
+    }
+  }
+  else
+  {
     *err = string_concat("unknown target: '", name, "'");
     return nullptr;
   }
-  if (!AddTarget(node, err))
-    return nullptr;
-  return node;
 }
 
 bool Builder::AddTarget(Node* node, std::string* err) {
   if (!scan_.RecomputeDirty(node, err))
     return false;
 
-  if (Edge* in_edge = node->in_edge()) {
+  if(Edge* in_edge = node->in_edge(); in_edge)
+  {
     if (in_edge->outputs_ready())
+    {
       return true;  // Nothing to do.
+    }
   }
 
   if (!plan_.AddTarget(node, err))
@@ -817,7 +846,7 @@ bool Builder::Build(std::string* err) {
   while (plan_.more_to_do()) {
     // See if we can start any more commands.
     if (failures_allowed && command_runner_->CanRunMore()) {
-      if (Edge* edge = plan_.FindWork()) {
+      if (Edge* edge = plan_.FindWork(); edge) {
         if (!StartEdge(edge, err)) {
           Cleanup();
           status_->BuildFinished();
@@ -902,11 +931,13 @@ bool Builder::StartEdge(Edge* edge, std::string* err) {
 
   // Create response file, if needed
   // XXX: this may also block; do we care?
-  std::string rspfile = edge->GetUnescapedRspfile();
-  if (!rspfile.empty()) {
-    std::string content = edge->GetBinding("rspfile_content");
-    if (!disk_interface_->WriteFile(rspfile, content))
+  if(std::string const& rspfile = edge->GetUnescapedRspfile(); ! rspfile.empty())
+  {
+    if(std::string const& content = edge->GetBinding("rspfile_content");
+       ! disk_interface_->WriteFile(rspfile, content))
+    {
       return false;
+    }
   }
 
   // start command computing and run it
@@ -1008,9 +1039,11 @@ bool Builder::FinishCommand(CommandRunner::Result* result, std::string* err) {
     return false;
 
   // Delete any left over response file.
-  std::string rspfile = edge->GetUnescapedRspfile();
-  if (!rspfile.empty() && !g_keep_rsp)
+  if(std::string const& rspfile = edge->GetUnescapedRspfile();
+     !rspfile.empty() && !g_keep_rsp)
+  {
     disk_interface_->RemoveFile(rspfile);
+  }
 
   if (scan_.build_log()) {
     if (!scan_.build_log()->RecordCommand(edge, start_time, end_time,
