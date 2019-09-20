@@ -39,7 +39,7 @@ struct BuildLogTest : public StateTestWithBuiltinRules, public BuildLogUser {
   void TearDown() override final {
     unlink(kTestFilename);
   }
-  bool IsPathDead(std::string_view s) const override { return false; }
+  bool IsPathDead(std::filesystem::path const& p) const override { return false; }
 };
 
 TEST_F(BuildLogTest, WriteRead) {
@@ -182,7 +182,7 @@ TEST_F(BuildLogTest, SpacesInOutputV4) {
   ASSERT_TRUE(e);
   ASSERT_EQ(123, e->start_time);
   ASSERT_EQ(456, e->end_time);
-  ASSERT_EQ(456, e->mtime);
+  ASSERT_EQ(TimeStamp(TimeStamp::duration(456)), e->mtime);
   ASSERT_NO_FATAL_FAILURE(AssertHash("command", e->command_hash));
 }
 
@@ -206,14 +206,14 @@ TEST_F(BuildLogTest, DuplicateVersionHeader) {
   ASSERT_TRUE(e);
   ASSERT_EQ(123, e->start_time);
   ASSERT_EQ(456, e->end_time);
-  ASSERT_EQ(456, e->mtime);
+  ASSERT_EQ(TimeStamp(TimeStamp::duration(456)), e->mtime);
   ASSERT_NO_FATAL_FAILURE(AssertHash("command", e->command_hash));
 
   e = log.LookupByOutput("out2");
   ASSERT_TRUE(e);
   ASSERT_EQ(456, e->start_time);
   ASSERT_EQ(789, e->end_time);
-  ASSERT_EQ(789, e->mtime);
+  ASSERT_EQ(TimeStamp(TimeStamp::duration(789)), e->mtime);
   ASSERT_NO_FATAL_FAILURE(AssertHash("command2", e->command_hash));
 }
 
@@ -241,7 +241,7 @@ TEST_F(BuildLogTest, VeryLongInputLine) {
   ASSERT_TRUE(e);
   ASSERT_EQ(456, e->start_time);
   ASSERT_EQ(789, e->end_time);
-  ASSERT_EQ(789, e->mtime);
+  ASSERT_EQ(TimeStamp(TimeStamp::duration(789)), e->mtime);
   ASSERT_NO_FATAL_FAILURE(AssertHash("command2", e->command_hash));
 }
 
@@ -266,7 +266,7 @@ TEST_F(BuildLogTest, MultiTargetEdge) {
 }
 
 struct BuildLogRecompactTest : public BuildLogTest {
-  bool IsPathDead(std::string_view s) const override final { return s == "out2"; }
+  bool IsPathDead(std::filesystem::path const& p) const override final { return p == "out2"; }
 };
 
 TEST_F(BuildLogRecompactTest, Recompact) {

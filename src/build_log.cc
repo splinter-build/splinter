@@ -251,7 +251,7 @@ struct LineReader final {
   char* line_end_ = nullptr;
 };
 
-bool BuildLog::Load(const std::string& path, std::string* err) {
+bool BuildLog::Load(std::filesystem::path const& path, std::string* err) {
   METRIC_RECORD(".ninja_log load");
   FILE* file = fopen(path.c_str(), "r");
   if (!file) {
@@ -296,7 +296,7 @@ bool BuildLog::Load(const std::string& path, std::string* err) {
     *end = 0;
 
     int start_time = 0, end_time = 0;
-    TimeStamp restat_mtime = 0;
+    TimeStamp restat_mtime = TimeStamp::min();
 
     start_time = atoi(start);
     start = end + 1;
@@ -312,7 +312,7 @@ bool BuildLog::Load(const std::string& path, std::string* err) {
     if (!end)
       continue;
     *end = 0;
-    restat_mtime = strtoll(start, nullptr, 10);
+    restat_mtime = TimeStamp(TimeStamp::duration(strtoll(start, nullptr, 10)));
     start = end + 1;
 
     end = (char*)memchr(start, kFieldSeparator, line_end - start);
@@ -375,7 +375,7 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const std::string& path) {
 
 bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
   return fprintf(f, "%d\t%d\t%" PRId64 "\t%s\t%" PRIx64 "\n",
-          entry.start_time, entry.end_time, entry.mtime,
+          entry.start_time, entry.end_time, std::chrono::duration_cast<std::chrono::nanoseconds>(entry.mtime.time_since_epoch()).count(),
           entry.output.c_str(), entry.command_hash) > 0;
 }
 
@@ -397,7 +397,7 @@ bool BuildLog::Recompact(const std::string& path, const BuildLogUser& user,
     return false;
   }
 
-  std::vector<std::string_view> dead_outputs;
+  std::vector<std::filesystem::path> dead_outputs;
   for (auto const& [path, entry] : entries_)
   {
     if (user.IsPathDead(path)) {

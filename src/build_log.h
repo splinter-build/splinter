@@ -15,13 +15,14 @@
 #ifndef NINJA_BUILD_LOG_H_
 #define NINJA_BUILD_LOG_H_
 
-#include <string>
-#include <stdio.h>
+#include "util.h"  // uint64_t
+#include "timestamp.h"
 
+#include <string>
+#include <filesystem>
 #include <unordered_map>
 
-#include "timestamp.h"
-#include "util.h"  // uint64_t
+#include <stdio.h>
 
 struct Edge;
 
@@ -29,7 +30,7 @@ struct Edge;
 struct BuildLogUser {
   /// Return if a given output is no longer part of the build manifest.
   /// This is only called during recompaction and doesn't have to be fast.
-  virtual bool IsPathDead(std::string_view s) const = 0;
+  virtual bool IsPathDead(std::filesystem::path const& p) const = 0;
 };
 
 /// Store a log of every command ran for every build.
@@ -45,18 +46,18 @@ struct BuildLog final {
 
   bool OpenForWrite(const std::string& path, const BuildLogUser& user, std::string* err);
   bool RecordCommand(Edge* edge, int start_time, int end_time,
-                     TimeStamp mtime = 0);
+                     TimeStamp mtime = TimeStamp::min());
   void Close();
 
   /// Load the on-disk log.
-  bool Load(const std::string& path, std::string* err);
+  bool Load(std::filesystem::path const& path, std::string* err);
 
   struct LogEntry final {
     std::string output;
     uint64_t command_hash;
     int start_time;
     int end_time;
-    TimeStamp mtime;
+    std::filesystem::file_time_type mtime;
 
     static uint64_t HashCommand(std::string_view command);
 
@@ -69,7 +70,7 @@ struct BuildLog final {
 
     explicit LogEntry(std::string output);
     LogEntry(std::string output, uint64_t command_hash,
-             int start_time, int end_time, TimeStamp restat_mtime);
+             int start_time, int end_time, std::filesystem::file_time_type restat_mtime);
   };
 
   /// Lookup a previously-run command by its output path.
@@ -81,7 +82,7 @@ struct BuildLog final {
   /// Rewrite the known log entries, throwing away old data.
   bool Recompact(const std::string& path, const BuildLogUser& user, std::string* err);
 
-  using Entries = std::unordered_map<std::string_view, LogEntry*>;
+  using Entries = std::unordered_map<std::filesystem::path, LogEntry*>;
   const Entries& entries() const { return entries_; }
 
  private:

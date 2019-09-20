@@ -135,24 +135,27 @@ struct VirtualFileSystem final : public DiskInterface {
   VirtualFileSystem() = default;
 
   /// "Create" a file with contents.
-  void Create(const std::string& path, const std::string& contents);
+  void Create(std::filesystem::path const& path,
+              std::string_view contents);
 
   /// Tick "time" forwards; subsequent file operations will be newer than
   /// previous ones.
-  int Tick() {
-    return ++now_;
+  TimeStamp Tick() {
+    // Can use ++ in C++20.
+    now_ += TimeStamp::duration(1);
+    return now_;
   }
 
   // DiskInterface
-  TimeStamp Stat(const std::string& path, std::string* err) const override final;
-  bool WriteFile(const std::string& path, const std::string& contents) override final;
-  bool MakeDir(const std::string& path) override final;
-  Status ReadFile(const std::string& path, std::string* contents, std::string* err) override final;
-  int RemoveFile(const std::string& path) override final;
+  TimeStamp Stat(std::filesystem::path const& path, std::string* err) const override final;
+  bool WriteFile(std::filesystem::path const& path, std::string_view contents) override final;
+  bool MakeDir(std::filesystem::path const& path) override final;
+  Status ReadFile(std::filesystem::path const& path, std::string* contents, std::string* err) override final;
+  int RemoveFile(std::filesystem::path const& path) override final;
 
   /// An entry for a single in-memory file.
   struct Entry final {
-    int mtime;
+    TimeStamp mtime;
     std::string stat_error;  // If mtime is -1.
     std::string contents;
   };
@@ -165,7 +168,7 @@ struct VirtualFileSystem final : public DiskInterface {
   std::set<std::string> files_created_;
 
   /// A simple fake timestamp for file operations.
-  int now_ = 1;
+  TimeStamp now_ = TimeStamp::min();
 };
 
 struct ScopedTempDir final {

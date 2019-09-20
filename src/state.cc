@@ -100,25 +100,26 @@ Edge* State::AddEdge(const Rule* rule) {
   return edge;
 }
 
-Node* State::GetNode(std::string_view path, uint64_t slash_bits) {
+Node* State::GetNode(std::filesystem::path const& path) {
   Node* node = LookupNode(path);
   if (node)
+  {
     return node;
-  node = new Node(std::string(path), slash_bits);
+  }
+  node = new Node(path);
   paths_[node->path()] = node;
   return node;
 }
 
-Node* State::LookupNode(std::string_view path) const {
+Node* State::LookupNode(std::filesystem::path const& path) const {
   METRIC_RECORD("lookup node");
-  if(auto const& i = paths_.find(path); i != paths_.end())
-  {
-    return i->second;
-  }
-  return nullptr;
+  auto const& i = paths_.find(path);
+  return   (i != paths_.end())
+         ? i->second
+         : nullptr;
 }
 
-Node* State::SpellcheckNode(std::string_view path) {
+Node* State::SpellcheckNode(std::filesystem::path const& path) {
   const bool kAllowReplacements = true;
   const int kMaxValidEditDistance = 3;
 
@@ -126,7 +127,7 @@ Node* State::SpellcheckNode(std::string_view path) {
   Node* result = nullptr;
   for (auto const& [pathKey, node] : paths_)
   {
-    int distance = EditDistance(pathKey, path, kAllowReplacements, kMaxValidEditDistance);
+    int distance = EditDistance(pathKey.c_str(), path.c_str(), kAllowReplacements, kMaxValidEditDistance);
     if (distance < min_distance && node)
     {
       min_distance = distance;
@@ -136,14 +137,14 @@ Node* State::SpellcheckNode(std::string_view path) {
   return result;
 }
 
-void State::AddIn(Edge* edge, std::string_view path, uint64_t slash_bits) {
-  Node* node = GetNode(path, slash_bits);
+void State::AddIn(Edge* edge, std::filesystem::path const& path) {
+  Node* node = GetNode(path);
   edge->inputs_.push_back(node);
   node->AddOutEdge(edge);
 }
 
-bool State::AddOut(Edge* edge, std::string_view path, uint64_t slash_bits) {
-  Node* node = GetNode(path, slash_bits);
+bool State::AddOut(Edge* edge, std::filesystem::path const& path) {
+  Node* node = GetNode(path);
   if (node->in_edge())
     return false;
   edge->outputs_.push_back(node);
@@ -151,10 +152,10 @@ bool State::AddOut(Edge* edge, std::string_view path, uint64_t slash_bits) {
   return true;
 }
 
-bool State::AddDefault(std::string_view path, std::string* err) {
+bool State::AddDefault(std::filesystem::path const& path, std::string* err) {
   Node* node = LookupNode(path);
   if (!node) {
-    *err = string_concat("unknown target '", path, "'");
+    *err = string_concat("unknown target '", path.c_str(), "'");
     return false;
   }
   defaults_.push_back(node);

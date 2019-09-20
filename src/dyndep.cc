@@ -49,9 +49,9 @@ bool DyndepLoader::LoadDyndeps(Node* node, DyndepFile* ddf,
     DyndepFile::iterator ddi = ddf->find(edge);
     if (ddi == ddf->end()) {
       *err = string_concat("'",
-                           edge->outputs_[0]->path(),
+                           edge->outputs_[0]->path().c_str(),
                            "' not mentioned in its dyndep file '",
-                           node->path(),
+                           node->path().c_str(),
                            "'");
       return false;
     }
@@ -67,12 +67,10 @@ bool DyndepLoader::LoadDyndeps(Node* node, DyndepFile* ddf,
   for (auto const& [edge, dyndep] : *ddf) {
     if (!dyndep.used_) {
       *err = string_concat("dyndep file '",
-                           node->path(),
-                           "' mentions output ",
-                           "'",
-                           edge->outputs_[0]->path(),
-                           "' whose build statement ",
-                           "does not have a dyndep binding for the file");
+                           node->path().c_str(),
+                           "' mentions output '",
+                           edge->outputs_[0]->path().c_str(),
+                           "' whose build statement does not have a dyndep binding for the file");
       return false;
     }
   }
@@ -99,7 +97,7 @@ bool DyndepLoader::UpdateEdge(Edge* edge, Dyndeps const* dyndeps,
            dyndeps->implicit_outputs_.begin();
        i != dyndeps->implicit_outputs_.end(); ++i) {
     if ((*i)->in_edge() != nullptr) {
-      *err = "multiple rules generate " + (*i)->path();
+      *err = string_concat("multiple rules generate ", (*i)->path().c_str());
       return false;
     }
     (*i)->set_in_edge(edge);

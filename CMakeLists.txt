@@ -64,6 +64,7 @@ if(WIN32)
 		target_sources(libninja PRIVATE src/minidump-win32.cc)
 	endif()
 else()
+	target_link_libraries(libninja PUBLIC stdc++fs)
 	target_sources(libninja PRIVATE src/subprocess-posix.cc)
 endif()
 

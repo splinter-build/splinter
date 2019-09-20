@@ -15,13 +15,15 @@
 #ifndef NINJA_GRAPH_H_
 #define NINJA_GRAPH_H_
 
-#include <string>
-#include <vector>
-
+#include "util.h"
 #include "dyndep.h"
 #include "eval_env.h"
 #include "timestamp.h"
-#include "util.h"
+
+#include <string>
+#include <vector>
+#include <filesystem>
+
 
 struct BuildLog;
 struct DepfileParserOptions;
@@ -35,9 +37,8 @@ struct State;
 /// Information about a node in the dependency graph: the file, whether
 /// it's dirty, mtime, etc.
 struct Node final {
-  Node(std::string path, uint64_t slash_bits)
+  Node(std::filesystem::path path)
    : path_(std::move(path))
-   , slash_bits_(slash_bits),
   { }
 
   /// Return false on error.
@@ -51,33 +52,26 @@ struct Node final {
 
   /// Mark as not-yet-stat()ed and not dirty.
   void ResetState() {
-    mtime_ = -1;
+    mtime_ = TimeStamp::max();
     dirty_ = false;
   }
 
   /// Mark the Node as already-stat()ed and missing.
   void MarkMissing() {
-    mtime_ = 0;
+    mtime_ = TimeStamp::min();
   }
 
   bool exists() const {
-    return mtime_ != 0;
+    return mtime_ != TimeStamp::min();
   }
 
   bool status_known() const {
-    return mtime_ != -1;
+    return mtime_ != TimeStamp::max();
   }
 
-  const std::string& path() const { return path_; }
-  /// Get |path()| but use slash_bits to convert back to original slash styles.
-  std::string PathDecanonicalized() const {
-    return PathDecanonicalized(path_, slash_bits_);
-  }
-  static std::string PathDecanonicalized(const std::string& path,
-                                    uint64_t slash_bits);
-  uint64_t slash_bits() const { return slash_bits_; }
+  std::filesystem::path const& path() const { return path_; }
 
-  TimeStamp mtime() const { return mtime_; }
+  TimeStamp const& mtime() const { return mtime_; }
 
   bool dirty() const { return dirty_; }
   void set_dirty(bool dirty) { dirty_ = dirty; }
@@ -98,17 +92,13 @@ struct Node final {
   void Dump(const char* prefix="") const;
 
 private:
-  std::string path_;
-
-  /// Set bits starting from lowest for backslashes that were normalized to
-  /// forward slashes by CanonicalizePath. See |PathDecanonicalized|.
-  uint64_t slash_bits_;
+  std::filesystem::path path_;
 
   /// Possible values of mtime_:
-  ///   -1: file hasn't been examined
-  ///   0:  we looked, and file doesn't exist
-  ///   >0: actual file's mtime
-  TimeStamp mtime_ = -1;  // TODO: Use std::numeric_limits.
+  ///   TimeStamp::max(): file hasn't been examined
+  ///   TimeStamp::min():  we looked, and file doesn't exist
+  ///   other value: actual file's mtime
+  TimeStamp mtime_ = TimeStamp::max();
 
   /// The Edge that produces this Node, or nullptr when there is no
   /// known edge to produce it.

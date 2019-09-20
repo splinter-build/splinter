@@ -23,6 +23,7 @@
 
 #include <string>
 #include <vector>
+#include <filesystem>
 
 #include <stdio.h>
 
@@ -83,13 +84,6 @@ void Error(const char* msg, ARGS_T && ... args)
 #define NINJA_FALLTHROUGH
 #endif
 
-/// Canonicalize a path like "foo/../bar.h" into just "bar.h".
-/// |slash_bits| has bits set starting from lowest for a backslash that was
-/// normalized to a forward slash. (only used on Windows)
-bool CanonicalizePath(std::string* path, uint64_t* slash_bits, std::string* err);
-bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
-                      std::string* err);
-
 /// Appends |input| to |*result|, escaping according to the whims of either
 /// Bash, or Win32's CommandLineToArgvW().
 /// Appends the string directly to |result| without modification if we can
@@ -112,8 +106,6 @@ const char* SpellcheckStringV(const std::string& text,
 
 /// Like SpellcheckStringV, but takes a nullptr-terminated list.
 const char* SpellcheckString(const char* text, ...);
-
-bool islatinalpha(int c);
 
 /// Removes all Ansi escape codes (http://www.termsys.demon.co.uk/vtansi.htm).
 std::string StripAnsiEscapeCodes(const std::string& in);
@@ -150,5 +142,16 @@ std::string GetLastErrorString();
 /// Calls Fatal() with a function name and GetLastErrorString.
 NORETURN void Win32Fatal(const char* function, const char* hint = nullptr);
 #endif
+
+namespace std
+{
+    template <> struct hash<std::filesystem::path>
+    {
+        size_t operator()(std::filesystem::path x) const
+        {
+            return std::filesystem::hash_value(x);
+        }
+    };
+}
 
 #endif  // NINJA_UTIL_H_

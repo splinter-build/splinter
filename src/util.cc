@@ -55,127 +55,6 @@
 #include "metrics.h"
 #include "string_piece_util.h"
 
-
-bool CanonicalizePath(std::string* path, uint64_t* slash_bits, std::string* err) {
-  METRIC_RECORD("canonicalize str");
-  size_t len = path->size();
-  char* str = 0;
-  if (len > 0)
-    str = &(*path)[0];
-  if (!CanonicalizePath(str, &len, slash_bits, err))
-    return false;
-  path->resize(len);
-  return true;
-}
-
-static bool IsPathSeparator(char c) {
-#ifdef _WIN32
-  return c == '/' || c == '\\';
-#else
-  return c == '/';
-#endif
-}
-
-bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
-                      std::string* err) {
-  // WARNING: this function is performance-critical; please benchmark
-  // any changes you make to it.
-  METRIC_RECORD("canonicalize path");
-  if (*len == 0) {
-    *err = "empty path";
-    return false;
-  }
-
-  const int kMaxPathComponents = 60;
-  char* components[kMaxPathComponents];
-  int component_count = 0;
-
-  char* start = path;
-  char* dst = start;
-  const char* src = start;
-  const char* end = start + *len;
-
-  if (IsPathSeparator(*src)) {
-#ifdef _WIN32
-
-    // network path starts with //
-    if (*len > 1 && IsPathSeparator(*(src + 1))) {
-      src += 2;
-      dst += 2;
-    } else {
-      ++src;
-      ++dst;
-    }
-#else
-    ++src;
-    ++dst;
-#endif
-  }
-
-  while (src < end) {
-    if (*src == '.') {
-      if (src + 1 == end || IsPathSeparator(src[1])) {
-        // '.' component; eliminate.
-        src += 2;
-        continue;
-      } else if (src[1] == '.' && (src + 2 == end || IsPathSeparator(src[2]))) {
-        // '..' component.  Back up if possible.
-        if (component_count > 0) {
-          dst = components[component_count - 1];
-          src += 3;
-          --component_count;
-        } else {
-          *dst++ = *src++;
-          *dst++ = *src++;
-          *dst++ = *src++;
-        }
-        continue;
-      }
-    }
-
-    if (IsPathSeparator(*src)) {
-      src++;
-      continue;
-    }
-
-    if (component_count == kMaxPathComponents)
-      Fatal("path has too many components : %s", path);
-    components[component_count] = dst;
-    ++component_count;
-
-    while (src != end && !IsPathSeparator(*src))
-      *dst++ = *src++;
-    *dst++ = *src++;  // Copy '/' or final \0 character as well.
-  }
-
-  if (dst == start) {
-    *dst++ = '.';
-    *dst++ = '\0';
-  }
-
-  *len = dst - start - 1;
-#ifdef _WIN32
-  uint64_t bits = 0;
-  uint64_t bits_mask = 1;
-
-  for (char* c = start; c < start + *len; ++c) {
-    switch (*c) {
-      case '\\':
-        bits |= bits_mask;
-        *c = '/';
-        NINJA_FALLTHROUGH;
-      case '/':
-        bits_mask <<= 1;
-    }
-  }
-
-  *slash_bits = bits;
-#else
-  *slash_bits = 0;
-#endif
-  return true;
-}
-
 static inline bool IsKnownShellSafeCharacter(char ch) {
   if ('A' <= ch && ch <= 'Z') return true;
   if ('a' <= ch && ch <= 'z') return true;
@@ -417,12 +296,12 @@ void Win32Fatal(const char* function, const char* hint) {
 }
 #endif
 
-bool islatinalpha(int c) {
-  // isalpha() is locale-dependent.
-  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
-}
-
 std::string StripAnsiEscapeCodes(const std::string& in) {
+  static const auto islatinalpha = [](int c) -> bool
+  {
+    // isalpha() is locale-dependent.
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+  };
   std::string stripped;
   stripped.reserve(in.size());
 
@@ -499,14 +378,14 @@ static double CalculateProcessorLoad(uint64_t idle_ticks, uint64_t total_ticks)
   return load;
 }
 
-static uint64_t FileTimeToTickCount(const FILETIME & ft)
-{
-  uint64_t high = (((uint64_t)(ft.dwHighDateTime)) << 32);
-  uint64_t low  = ft.dwLowDateTime;
-  return (high | low);
-}
-
 double GetLoadAverage() {
+  static const auto FileTimeToTickCount = [](const FILETIME & ft) -> uint64_t
+  {
+    uint64_t high = (((uint64_t)(ft.dwHighDateTime)) << 32);
+    uint64_t low  = ft.dwLowDateTime;
+    return (high | low);
+  };
+
   FILETIME idle_time, kernel_time, user_time;
   BOOL get_system_time_succeeded =
       GetSystemTimes(&idle_time, &kernel_time, &user_time);

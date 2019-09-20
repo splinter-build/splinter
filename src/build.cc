@@ -135,15 +135,17 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   // Print the command that is spewing before printing its output.
   if (!success) {
     std::string outputs;
-    for (const auto & item : edge->outputs_)
-      outputs += item->path() + " ";
+    for(const auto & item : edge->outputs_)
+    {
+        string_append(outputs, item->path().c_str(), " ");
+    }
 
     if (printer_.supports_color()) {
         printer_.PrintOnNewLine(string_concat("\x1B[31m" "FAILED: " "\x1B[0m", outputs, "\n"));
     } else {
         printer_.PrintOnNewLine(string_concat("FAILED: ", outputs, "\n"));
     }
-    printer_.PrintOnNewLine(edge->EvaluateCommand() + "\n");
+    printer_.PrintOnNewLine(string_concat(edge->EvaluateCommand(), "\n"));
   }
 
   if (!output.empty()) {
@@ -330,11 +332,11 @@ bool Plan::AddSubTarget(Node* node, Node* dependent, std::string* err,
     {
       if(dependent)
       {
-        *err = string_concat("'", node->path(), "', needed by '", dependent->path(), "', missing and no known rule to make it");
+        *err = string_concat("'", node->path().c_str(), "', needed by '", dependent->path().c_str(), "', missing and no known rule to make it");
       }
       else
       {
-          *err = string_concat("'", node->path(), "'", " missing and no known rule to make it");
+          *err = string_concat("'", node->path().c_str(), "'", " missing and no known rule to make it");
       }
     }
     return false;
@@ -766,7 +768,7 @@ void Builder::Cleanup() {
         // but is interrupted before it touches its output file.)
         std::string err;
         TimeStamp new_mtime = disk_interface_->Stat(inner->path(), &err);
-        if (new_mtime == -1)  // Log and ignore Stat() errors.
+        if (new_mtime == TimeStamp::max())  // Log and ignore Stat() errors.
           Error("%s", err.c_str());
         if (!depfile.empty() || inner->mtime() != new_mtime)
           disk_interface_->RemoveFile(inner->path());
@@ -982,14 +984,14 @@ bool Builder::FinishCommand(CommandRunner::Result* result, std::string* err) {
   }
 
   // Restat the edge outputs
-  TimeStamp output_mtime = 0;
+  TimeStamp output_mtime = TimeStamp::min();
   bool restat = edge->GetBindingBool("restat");
   if (!config_.dry_run) {
     bool node_cleaned = false;
 
     for (const auto & item : edge->outputs_) {
       TimeStamp new_mtime = disk_interface_->Stat(item->path(), err);
-      if (new_mtime == -1)
+      if (new_mtime == TimeStamp::max())
         return false;
       if (new_mtime > output_mtime)
         output_mtime = new_mtime;
@@ -1004,22 +1006,22 @@ bool Builder::FinishCommand(CommandRunner::Result* result, std::string* err) {
     }
 
     if (node_cleaned) {
-      TimeStamp restat_mtime = 0;
+      TimeStamp restat_mtime = TimeStamp::min();
       // If any output was cleaned, find the most recent mtime of any
       // (existing) non-order-only input or the depfile.
       for (std::vector<Node*>::iterator i = edge->inputs_.begin();
            i != edge->inputs_.end() - edge->order_only_deps_; ++i) {
         TimeStamp input_mtime = disk_interface_->Stat((*i)->path(), err);
-        if (input_mtime == -1)
+        if (input_mtime == TimeStamp::max())
           return false;
         if (input_mtime > restat_mtime)
           restat_mtime = input_mtime;
       }
 
       std::string depfile = edge->GetUnescapedDepfile();
-      if (restat_mtime != 0 && deps_type.empty() && !depfile.empty()) {
+      if (restat_mtime != TimeStamp::min() && deps_type.empty() && !depfile.empty()) {
         TimeStamp depfile_mtime = disk_interface_->Stat(depfile, err);
-        if (depfile_mtime == -1)
+        if (depfile_mtime == TimeStamp::max())
           return false;
         if (depfile_mtime > restat_mtime)
           restat_mtime = depfile_mtime;
@@ -1055,7 +1057,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, std::string* err) {
     assert(edge->outputs_.size() == 1 && "should have been rejected by parser");
     Node* out = edge->outputs_[0];
     TimeStamp deps_mtime = disk_interface_->Stat(out->path(), err);
-    if (deps_mtime == -1)
+    if (deps_mtime == TimeStamp::max())
       return false;
     if (!scan_.deps_log()->RecordDeps(out, deps_mtime, deps_nodes)) {
       *err = std::string("Error writing to deps log: ") + strerror(errno);
@@ -1081,7 +1083,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
       // all backslashes (as some of the slashes will certainly be backslashes
       // anyway). This could be fixed if necessary with some additional
       // complexity in IncludesNormalize::Relativize.
-      deps_nodes->push_back(state_->GetNode(item, ~0u));
+      deps_nodes->push_back(state_->GetNode(item));
     }
   } else
   if (deps_type == "gcc") {
@@ -1113,29 +1115,14 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     deps_nodes->reserve(deps.ins_.size());
     for (auto & item : deps.ins_)
     {
-      uint64_t slash_bits;
-
-      size_t size = item.size();
-      // What the hell?
-      // Who's bright idea was it to use const_cast?
-      if (!CanonicalizePath(const_cast<char*>(item.data()),
-                            &size,
-                            &slash_bits,
-                            err))
-      {
-        item = item.substr(0, size);
-        return false;
-      }
-      item = item.substr(0, size);
-
-      deps_nodes->push_back(state_->GetNode(item, slash_bits));
+      deps_nodes->push_back(state_->GetNode(item));
     }
 
     if (!g_keep_depfile)
     {
       if (disk_interface_->RemoveFile(depfile) < 0)
       {
-        *err = std::string("deleting depfile: ") + strerror(errno) + std::string("\n");
+        *err = string_concat("deleting depfile: ", strerror(errno), "\n");
         return false;
       }
     }

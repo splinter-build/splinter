@@ -14,23 +14,26 @@
 
 #include "graph.h"
 
+#include "util.h"
+#include "state.h"
+#include "metrics.h"
+#include "deps_log.h"
+#include "build_log.h"
+#include "debug_flags.h"
+#include "string_concat.h"
+#include "depfile_parser.h"
+#include "disk_interface.h"
+#include "manifest_parser.h"
+
+
 #include <algorithm>
+#include <cinttypes>
+
 #include <assert.h>
 #include <stdio.h>
 
-#include "build_log.h"
-#include "debug_flags.h"
-#include "depfile_parser.h"
-#include "deps_log.h"
-#include "disk_interface.h"
-#include "manifest_parser.h"
-#include "metrics.h"
-#include "state.h"
-#include "util.h"
-#include "string_concat.h"
-
 bool Node::Stat(DiskInterface* disk_interface, std::string* err) {
-  return (mtime_ = disk_interface->Stat(path_, err)) != -1;
+  return (mtime_ = disk_interface->Stat(path_, err)) != TimeStamp::max();
 }
 
 bool DependencyScan::RecomputeDirty(Node* node, std::string* err) {
@@ -241,7 +244,7 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
     return false;
   }
 
-  BuildLog::LogEntry* entry = 0;
+  BuildLog::LogEntry* entry = nullptr;
 
   // Dirty if we're missing the output.
   if (!output->exists()) {
@@ -264,12 +267,15 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
       used_restat = true;
     }
 
-    if (output_mtime < most_recent_input->mtime()) {
+    if(output_mtime < most_recent_input->mtime())
+    {
       EXPLAIN("%soutput %s older than most recent input %s "
               "(%" PRId64 " vs %" PRId64 ")",
-              used_restat ? "restat of " : "", output->path().c_str(),
+              used_restat ? "restat of " : "",
+              output->path().c_str(),
               most_recent_input->path().c_str(),
-              output_mtime, most_recent_input->mtime());
+              std::chrono::duration_cast<std::chrono::nanoseconds>(output_mtime.time_since_epoch()).count(),
+              std::chrono::duration_cast<std::chrono::nanoseconds>(most_recent_input->mtime().time_since_epoch()).count());
       return true;
     }
   }
@@ -291,8 +297,10 @@ bool DependencyScan::RecomputeOutputDirty(Edge* edge,
         // on disk is newer if a previous run wrote to the output file but
         // exited with an error or was interrupted.
         EXPLAIN("recorded mtime of %s older than most recent input %s (%" PRId64 " vs %" PRId64 ")",
-                output->path().c_str(), most_recent_input->path().c_str(),
-                entry->mtime, most_recent_input->mtime());
+                output->path().c_str(),
+                most_recent_input->path().c_str(),
+                std::chrono::duration_cast<std::chrono::nanoseconds>(entry->mtime.time_since_epoch()).count(),
+                std::chrono::duration_cast<std::chrono::nanoseconds>(most_recent_input->mtime().time_since_epoch()).count());
         return true;
       }
     }
@@ -364,7 +372,7 @@ std::string EdgeEnv::LookupVariable(const std::string& var) {
       for (; it != lookups_.end(); ++it)
         cycle.append(*it + " -> ");
       cycle.append(var);
-      Fatal(("cycle in rule variables: " + cycle).c_str());
+      Fatal("cycle in rule variables: $s", cycle.c_str());
     }
   }
 
@@ -385,9 +393,9 @@ std::string EdgeEnv::MakePathList(const Node* const* const span,
   for (const Node* const* i = span; i != span + size; ++i) {
     if (!result.empty())
       result.push_back(sep);
-    const std::string& path = (*i)->PathDecanonicalized();
+    std::filesystem::path const& path = (*i)->path();
     if (escape_in_out_ == kShellEscape) {
-#if _WIN32
+#ifdef _WIN32
       GetWin32EscapedString(path, &result);
 #else
       GetShellEscapedString(path, &result);
@@ -470,25 +478,13 @@ bool Edge::maybe_phonycycle_diagnostic() const {
       implicit_deps_ == 0;
 }
 
-// static
-std::string Node::PathDecanonicalized(const std::string& path, uint64_t slash_bits) {
-  std::string result = path;
-#ifdef _WIN32
-  uint64_t mask = 1;
-  for (char* c = &result[0]; (c = strchr(c, '/')) != nullptr;) {
-    if (slash_bits & mask)
-      *c = '\\';
-    c++;
-    mask <<= 1;
-  }
-#endif
-  return result;
-}
-
 void Node::Dump(const char* prefix) const {
   printf("%s <%s 0x%p> mtime: %" PRId64 "%s, (:%s), ",
-         prefix, path().c_str(), this,
-         mtime(), mtime() ? "" : " (:missing)",
+         prefix,
+         path().c_str(),
+         this,
+         std::chrono::duration_cast<std::chrono::nanoseconds>(mtime().time_since_epoch()).count(),
+         mtime() != TimeStamp::min() ? "" : " (:missing)",
          dirty() ? " dirty" : " clean");
   if (in_edge()) {
     in_edge()->Dump("in-edge: ");
@@ -545,22 +541,10 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const std::string& path,
     return false;
   }
 
-  uint64_t unused;
-  size_t size1 = depfile.out_.size();
-  // WTF. Const cast?
-  if (!CanonicalizePath(const_cast<char*>(depfile.out_.data()),
-                        &size1, &unused, err)) {
-    *err = string_concat(path, ": ", *err);
-    depfile.out_ = depfile.out_.substr(0, size1);
-    return false;
-  }
-  depfile.out_ = depfile.out_.substr(0, size1);
-
   // Check that this depfile matches the edge's output, if not return false to
   // mark the edge as dirty.
   Node* first_output = edge->outputs_[0];
-  std::string_view opath = std::string_view(first_output->path());
-  if (opath != depfile.out_) {
+  if (first_output->path() != depfile.out_) {
     EXPLAIN("expected depfile '%s' to mention '%s', got '%s'", path.c_str(),
             first_output->path().c_str(), std::string(depfile.out_).c_str());
     return false;
@@ -571,19 +555,10 @@ bool ImplicitDepLoader::LoadDepFile(Edge* edge, const std::string& path,
       PreallocateSpace(edge, depfile.ins_.size());
 
   // Add all its in-edges.
-  for (std::vector<std::string_view>::iterator i = depfile.ins_.begin();
-       i != depfile.ins_.end(); ++i, ++implicit_dep) {
-    uint64_t slash_bits;
-    size_t size = i->size();
-    // WTF. Const cast?
-    if (!CanonicalizePath(const_cast<char*>(i->data()), &size, &slash_bits, err))
-    {
-      *i = i->substr(0, size);
-      return false;
-    }
-    *i = i->substr(0, size);
-
-    Node* node = state_->GetNode(*i, slash_bits);
+  for(auto const& item : depfile.ins_)
+  {
+    ++implicit_dep;
+    Node* node = state_->GetNode(item);
     *implicit_dep = node;
     node->AddOutEdge(edge);
     CreatePhonyInEdge(node);
@@ -604,7 +579,9 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, std::string* err) {
   // Deps are invalid if the output is newer than the deps.
   if (output->mtime() > deps->mtime) {
     EXPLAIN("stored deps info out of date for '%s' (%" PRId64 " vs %" PRId64 ")",
-            output->path().c_str(), deps->mtime, output->mtime());
+            output->path().c_str(),
+            std::chrono::duration_cast<std::chrono::nanoseconds>(deps->mtime.time_since_epoch()).count(),
+            std::chrono::duration_cast<std::chrono::nanoseconds>(output->mtime().time_since_epoch()).count());
     return false;
   }
 
@@ -622,7 +599,7 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, std::string* err) {
 std::vector<Node*>::iterator ImplicitDepLoader::PreallocateSpace(Edge* edge,
                                                             int count) {
   edge->inputs_.insert(edge->inputs_.end() - edge->order_only_deps_,
-                       (size_t)count, 0);
+                       (size_t)count, nullptr);
   edge->implicit_deps_ += count;
   return edge->inputs_.end() - edge->order_only_deps_ - count;
 }

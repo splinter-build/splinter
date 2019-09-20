@@ -25,26 +25,31 @@
 Cleaner::Cleaner(State* state,
                  const BuildConfig& config,
                  DiskInterface* disk_interface)
-  : state_(state),
-    config_(config),
-    dyndep_loader_(state, disk_interface),
-    removed_(),
-    cleaned_(),
-    cleaned_files_count_(0),
-    disk_interface_(disk_interface),
-    status_(0) {
-}
+  : state_(state)
+  , config_(config)
+  , dyndep_loader_(state, disk_interface)
+  , removed_()
+  , cleaned_()
+  , cleaned_files_count_(0)
+  , disk_interface_(disk_interface)
+  , status_(0)
+{ }
 
-int Cleaner::RemoveFile(const std::string& path) {
+int Cleaner::RemoveFile(const std::string& path)
+{
   return disk_interface_->RemoveFile(path);
 }
 
-bool Cleaner::FileExists(const std::string& path) {
-  std::string err;
-  TimeStamp mtime = disk_interface_->Stat(path, &err);
-  if (mtime == -1)
-    Error("%s", err.c_str());
-  return mtime > 0;  // Treat Stat() errors as "file does not exist".
+bool Cleaner::FileExists(const std::string& path)
+{
+  std::error_code ec;
+  bool const exists = std::filesystem::exists(path, ec);
+  if( ! exists || ec)
+  {
+    Error("%s", ec.message().c_str());
+    return false;
+  }
+  return true;
 }
 
 void Cleaner::Report(const std::string& path) {
@@ -174,21 +179,14 @@ int Cleaner::CleanTargets(int target_count, char* targets[]) {
   LoadDyndeps();
   for (int i = 0; i < target_count; ++i) {
     std::string target_name = targets[i];
-    uint64_t slash_bits;
-    std::string err;
-    if (!CanonicalizePath(&target_name, &slash_bits, &err)) {
-      Error("failed to canonicalize '%s': %s", target_name.c_str(), err.c_str());
-      status_ = 1;
+    Node* target = state_->LookupNode(target_name);
+    if (target) {
+      if (IsVerbose())
+        printf("Target %s\n", target_name.c_str());
+      DoCleanTarget(target);
     } else {
-      Node* target = state_->LookupNode(target_name);
-      if (target) {
-        if (IsVerbose())
-          printf("Target %s\n", target_name.c_str());
-        DoCleanTarget(target);
-      } else {
-        Error("unknown target '%s'", target_name.c_str());
-        status_ = 1;
-      }
+      Error("unknown target '%s'", target_name.c_str());
+      status_ = 1;
     }
   }
   PrintFooter();

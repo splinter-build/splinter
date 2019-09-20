@@ -459,27 +459,6 @@ TEST_F(GraphTest, CycleWithLengthOneFromDepfileOneHopAway) {
   EXPECT_EQ("c", edge->inputs_[0]->path());
 }
 
-#ifdef _WIN32
-TEST_F(GraphTest, Decanonicalize) {
-  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
-"build out\\out1: cat src\\in1\n"
-"build out\\out2/out3\\out4: cat mid1\n"
-"build out3 out4\\foo: cat mid1\n"));
-
-  std::string err;
-  std::vector<Node*> root_nodes = state_.RootNodes(&err);
-  EXPECT_EQ(4u, root_nodes.size());
-  EXPECT_EQ(root_nodes[0]->path(), "out/out1");
-  EXPECT_EQ(root_nodes[1]->path(), "out/out2/out3/out4");
-  EXPECT_EQ(root_nodes[2]->path(), "out3");
-  EXPECT_EQ(root_nodes[3]->path(), "out4/foo");
-  EXPECT_EQ(root_nodes[0]->PathDecanonicalized(), "out\\out1");
-  EXPECT_EQ(root_nodes[1]->PathDecanonicalized(), "out\\out2/out3\\out4");
-  EXPECT_EQ(root_nodes[2]->PathDecanonicalized(), "out3");
-  EXPECT_EQ(root_nodes[3]->PathDecanonicalized(), "out4\\foo");
-}
-#endif
-
 TEST_F(GraphTest, DyndepLoadTrivial) {
   AssertParse(&state_,
 "rule r\n"
