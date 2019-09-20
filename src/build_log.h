@@ -67,8 +67,8 @@ struct BuildLog final {
           mtime == o.mtime;
     }
 
-    explicit LogEntry(const std::string& output);
-    LogEntry(const std::string& output, uint64_t command_hash,
+    explicit LogEntry(std::string output);
+    LogEntry(std::string output, uint64_t command_hash,
              int start_time, int end_time, TimeStamp restat_mtime);
   };
 
