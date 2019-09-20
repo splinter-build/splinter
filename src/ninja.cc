@@ -615,8 +615,7 @@ int NinjaMain::ToolRules(const Options* options, int argc, char* argv[]) {
 
   // Print rules
 
-  typedef std::map<std::string, const Rule*> Rules;
-  const Rules& rules = state_.bindings_.GetRules();
+  BindingEnv::RuleMap const& rules = state_.bindings_.GetRules();
   for (auto const& [name, rule] : rules) {
     printf("%s", name.c_str());
     if (print_description) {

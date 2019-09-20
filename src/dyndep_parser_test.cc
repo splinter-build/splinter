@@ -14,7 +14,6 @@
 
 #include "dyndep_parser.h"
 
-#include <map>
 #include <vector>
 
 #include "dyndep.h"

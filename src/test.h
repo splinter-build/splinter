@@ -159,7 +159,7 @@ struct VirtualFileSystem final : public DiskInterface {
 
   std::vector<std::string> directories_made_;
   std::vector<std::string> files_read_;
-  typedef std::map<std::string, Entry> FileMap;
+  typedef std::map<std::string, Entry, std::less<>> FileMap;
   FileMap files_;
   std::set<std::string> files_removed_;
   std::set<std::string> files_created_;

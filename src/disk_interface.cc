@@ -92,7 +92,7 @@ bool IsWindows7OrLater() {
       &version_info, VER_MAJORVERSION | VER_MINORVERSION, comparison);
 }
 
-bool StatAllFilesInDir(const std::string& dir, std::map<std::string, TimeStamp>* stamps,
+bool StatAllFilesInDir(const std::string& dir, std::map<std::string, TimeStamp, std::less<>>* stamps,
                        std::string* err) {
   // FindExInfoBasic is 30% faster than FindExInfoStandard.
   static bool can_use_basic_info = IsWindows7OrLater();

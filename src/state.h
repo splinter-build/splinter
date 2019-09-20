@@ -89,7 +89,7 @@ struct State final {
   State();
 
   void AddPool(Pool* pool);
-  Pool* LookupPool(const std::string& pool_name);
+  Pool* LookupPool(std::string_view pool_name);
 
   Edge* AddEdge(const Rule* rule);
 
@@ -118,7 +118,7 @@ struct State final {
   Paths paths_;
 
   /// All the pools used in the graph.
-  std::map<std::string, Pool*> pools_;
+  std::map<std::string, Pool*, std::less<>> pools_;
 
   /// All the edges of the graph.
   std::vector<Edge*> edges_;

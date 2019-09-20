@@ -84,10 +84,10 @@ struct RealDiskInterface final : public DiskInterface {
   /// Whether stat information can be cached.
   bool use_cache_ = false;
 
-  typedef std::map<std::string, TimeStamp> DirCache;
+  typedef std::map<std::string, TimeStamp, std::less<>> DirCache;
   // TODO: Neither a map nor a hashmap seems ideal here.  If the statcache
   // works out, come up with a better data structure.
-  typedef std::map<std::string, DirCache> Cache;
+  typedef std::map<std::string, DirCache, std::less<>> Cache;
   mutable Cache cache_;
 #endif
 };

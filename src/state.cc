@@ -84,11 +84,11 @@ void State::AddPool(Pool* pool) {
   pools_[pool->name()] = pool;
 }
 
-Pool* State::LookupPool(const std::string& pool_name) {
-  std::map<std::string, Pool*>::iterator i = pools_.find(pool_name);
-  if (i == pools_.end())
-    return nullptr;
-  return i->second;
+Pool* State::LookupPool(std::string_view pool_name) {
+  auto const& i = pools_.find(pool_name);
+  return   i != pools_.end()
+         ? i->second
+         : nullptr;
 }
 
 Edge* State::AddEdge(const Rule* rule) {
