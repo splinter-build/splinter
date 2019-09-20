@@ -69,9 +69,11 @@ void RunBrowsePython(State* state, const char* ninja_command,
     close(pipefd[0]);
 
     // Write the script file into the stdin of the Python process.
-    ssize_t len = write(pipefd[1], kBrowsePy, sizeof(kBrowsePy));
-    if (len < (ssize_t)sizeof(kBrowsePy))
+    if(ssize_t len = write(pipefd[1], kBrowsePy, sizeof(kBrowsePy));
+       len < (ssize_t)sizeof(kBrowsePy))
+    {
       perror("ninja: write");
+    }
     close(pipefd[1]);
     exit(0);
   }
