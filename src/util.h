@@ -24,14 +24,39 @@
 #include <string>
 #include <vector>
 
-#ifdef _MSC_VER
-#define NORETURN __declspec(noreturn)
-#else
-#define NORETURN __attribute__((noreturn))
-#endif
+#include <stdio.h>
+
+// Forcibly terminates the process
+[[noreturn]] void NinjaExitProcess();
 
 /// Log a fatal message and exit.
-NORETURN void Fatal(const char* msg, ...);
+template<typename ... ARGS_T>
+[[noreturn]] void Fatal(const char* msg, ARGS_T && ... args)
+{
+  fprintf(stderr, "ninja: fatal: ");
+  fprintf(stderr, msg, std::forward<ARGS_T>(args)...);
+  fprintf(stderr, "\n");
+  NinjaExitProcess();
+}
+
+/// Log a warning message.
+template<typename ... ARGS_T>
+void Warning(const char* msg, ARGS_T && ... args)
+{
+  fprintf(stderr, "ninja: warning: ");
+  fprintf(stderr, msg, std::forward<ARGS_T>(args)...);
+  fprintf(stderr, "\n");
+}
+
+/// Log an error message.
+template<typename ... ARGS_T>
+void Error(const char* msg, ARGS_T && ... args)
+{
+  fprintf(stderr, "ninja: error: ");
+  fprintf(stderr, msg, std::forward<ARGS_T>(args)...);
+  fprintf(stderr, "\n");
+}
+
 
 // Have a generic fall-through for different versions of C/C++.
 #if defined(__cplusplus) && __cplusplus >= 201703L
@@ -46,12 +71,6 @@ NORETURN void Fatal(const char* msg, ...);
 #else // C++11 on gcc 6, and all other cases
 #define NINJA_FALLTHROUGH
 #endif
-
-/// Log a warning message.
-void Warning(const char* msg, ...);
-
-/// Log an error message.
-void Error(const char* msg, ...);
 
 /// Canonicalize a path like "foo/../bar.h" into just "bar.h".
 /// |slash_bits| has bits set starting from lowest for a backslash that was
@@ -99,7 +118,7 @@ double GetLoadAverage();
 
 /// Elide the given string @a str with '...' in the middle if the length
 /// exceeds @a width.
-std::string ElideMiddle(const std::string& str, size_t width);
+std::string ElideMiddle(std::string_view str, size_t width);
 
 /// Truncates a file to the given size.
 bool Truncate(const std::string& path, size_t size, std::string* err);
@@ -119,7 +138,7 @@ bool Truncate(const std::string& path, size_t size, std::string* err);
 std::string GetLastErrorString();
 
 /// Calls Fatal() with a function name and GetLastErrorString.
-NORETURN void Win32Fatal(const char* function, const char* hint = nullptr);
+[[noreturn]] void Win32Fatal(const char* function, const char* hint = nullptr);
 #endif
 
 #endif  // NINJA_UTIL_H_

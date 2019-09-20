@@ -1366,7 +1366,7 @@ int ReadFlags(int* argc, char*** argv,
   return -1;
 }
 
-NORETURN void real_main(int argc, char** argv) {
+[[noreturn]] void real_main(int argc, char** argv) {
   // Use exit() instead of return in this function to avoid potentially
   // expensive cleanup when destructing NinjaMain.
   BuildConfig config;

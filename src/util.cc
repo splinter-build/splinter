@@ -15,9 +15,11 @@
 #include "util.h"
 
 #ifdef __CYGWIN__
+#define NOMINMAX
 #include <windows.h>
 #include <io.h>
 #elif defined( _WIN32)
+#define NOMINMAX
 #include <windows.h>
 #include <io.h>
 #include <share.h>
@@ -53,14 +55,11 @@
 
 #include "edit_distance.h"
 #include "metrics.h"
+#include "string_piece_util.h"
+#include "string_concat.h"
 
-void Fatal(const char* msg, ...) {
-  va_list ap;
-  fprintf(stderr, "ninja: fatal: ");
-  va_start(ap, msg);
-  vfprintf(stderr, msg, ap);
-  va_end(ap);
-  fprintf(stderr, "\n");
+void NinjaExitProcess()
+{
 #ifdef _WIN32
   // On Windows, some tools may inject extra threads.
   // exit() may block on locks held by those threads, so forcibly exit.
@@ -70,24 +69,6 @@ void Fatal(const char* msg, ...) {
 #else
   exit(1);
 #endif
-}
-
-void Warning(const char* msg, ...) {
-  va_list ap;
-  fprintf(stderr, "ninja: warning: ");
-  va_start(ap, msg);
-  vfprintf(stderr, msg, ap);
-  va_end(ap);
-  fprintf(stderr, "\n");
-}
-
-void Error(const char* msg, ...) {
-  va_list ap;
-  fprintf(stderr, "ninja: error: ");
-  va_start(ap, msg);
-  vfprintf(stderr, msg, ap);
-  va_end(ap);
-  fprintf(stderr, "\n");
 }
 
 bool CanonicalizePath(std::string* path, uint64_t* slash_bits, std::string* err) {
@@ -595,7 +576,8 @@ double GetLoadAverage() {
 }
 #endif // _WIN32
 
-std::string ElideMiddle(const std::string& str, size_t width) {
+std::string ElideMiddle(std::string_view const str, size_t const width)
+{
   switch (width) {
       case 0: return "";
       case 1: return ".";
@@ -603,14 +585,14 @@ std::string ElideMiddle(const std::string& str, size_t width) {
       case 3: return "...";
   }
   const int kMargin = 3;  // Space for "...".
-  std::string result = str;
-  if (result.size() > width) {
+  if(str.size() > width)
+  {
     size_t elide_size = (width - kMargin) / 2;
-    result = result.substr(0, elide_size)
-      + "..."
-      + result.substr(result.size() - elide_size, elide_size);
+    return string_concat(str.substr(0, elide_size),
+                         "...",
+                         str.substr(str.size() - elide_size, elide_size));
   }
-  return result;
+  return std::string(str);
 }
 
 bool Truncate(const std::string& path, size_t size, std::string* err) {

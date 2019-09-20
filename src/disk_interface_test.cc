@@ -16,6 +16,7 @@
 #include <stdio.h>
 #ifdef _WIN32
 #include <io.h>
+#define NOMINMAX
 #include <windows.h>
 #endif
 
