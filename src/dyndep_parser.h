@@ -22,7 +22,7 @@ struct DyndepFile;
 struct EvalString;
 
 /// Parses dyndep files.
-struct DyndepParser: public Parser {
+struct DyndepParser final : public Parser {
   DyndepParser(State* state, FileReader* file_reader,
                DyndepFile* dyndep_file);
 
@@ -33,8 +33,8 @@ struct DyndepParser: public Parser {
 
 private:
   /// Parse a file, given its contents as a string.
-  bool Parse(const std::string& filename, const std::string& input,
-             std:: string* err);
+  bool Parse(std::filesystem::path const& filename, const std::string& input,
+             std::string* err) override final;
 
   bool ParseDyndepVersion(std::string* err);
   bool ParseLet(std::string* key, EvalString* val, std::string* err);

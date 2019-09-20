@@ -31,7 +31,7 @@ DyndepParser::DyndepParser(State* state, FileReader* file_reader,
     , dyndep_file_(dyndep_file) {
 }
 
-bool DyndepParser::Parse(const std::string& filename, const std::string& input,
+bool DyndepParser::Parse(std::filesystem::path const& filename, const std::string& input,
                          std::string* err) {
   lexer_.Start(filename, input);
 
@@ -115,10 +115,6 @@ bool DyndepParser::ParseEdge(std::string* err) {
       return lexer_.Error("expected path", err);
 
     std::string path = out0.Evaluate(&env_);
-    std::string path_err;
-    uint64_t slash_bits;
-    if (!CanonicalizePath(&path, &slash_bits, &path_err))
-      return lexer_.Error(path_err, err);
     Node* node = state_->LookupNode(path);
     if (!node || !node->in_edge())
       return lexer_.Error(string_concat("no build statement exists for '", path, "'"), err);
@@ -202,22 +198,12 @@ bool DyndepParser::ParseEdge(std::string* err) {
 
   dyndeps->implicit_inputs_.reserve(ins.size());
   for (auto const& item : ins) {
-    std::string path = item.Evaluate(&env_);
-    std::string path_err;
-    uint64_t slash_bits;
-    if (!CanonicalizePath(&path, &slash_bits, &path_err))
-      return lexer_.Error(path_err, err);
-    Node* n = state_->GetNode(path, slash_bits);
+    Node* n = state_->GetNode(item.Evaluate(&env_));
     dyndeps->implicit_inputs_.push_back(n);
   }
 
   for (auto const& item : outs) {
-    std::string path = item.Evaluate(&env_);
-    std::string path_err;
-    uint64_t slash_bits;
-    if (!CanonicalizePath(&path, &slash_bits, &path_err))
-      return lexer_.Error(path_err, err);
-    Node* n = state_->GetNode(path, slash_bits);
+    Node* n = state_->GetNode(item.Evaluate(&env_));
     dyndeps->implicit_outputs_.push_back(n);
   }
 

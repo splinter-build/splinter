@@ -12,6 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "util.h"
+#include "state.h"
+#include "build.h"
+#include "graph.h"
+#include "clean.h"
+#include "browse.h"
+#include "metrics.h"
+#include "version.h"
+#include "graphviz.h"
+#include "deps_log.h"
+#include "build_log.h"
+#include "debug_flags.h"
+#include "string_concat.h"
+#include "disk_interface.h"
+#include "manifest_parser.h"
+#include "string_piece_util.h"
+
+#include <cinttypes>
+
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -32,24 +51,6 @@
 #include <unistd.h>
 #endif
 
-#include "browse.h"
-#include "build.h"
-#include "build_log.h"
-#include "deps_log.h"
-#include "clean.h"
-#include "debug_flags.h"
-#include "disk_interface.h"
-#include "graph.h"
-#include "graphviz.h"
-#include "manifest_parser.h"
-#include "metrics.h"
-#include "state.h"
-#include "util.h"
-#include "version.h"
-#include "string_concat.h"
-
-using namespace std;
-
 #ifdef _MSC_VER
 // Defined in msvc_helper_main-win32.cc.
 int MSVCHelperMain(int argc, char** argv);
@@ -65,10 +66,10 @@ struct Tool;
 /// Command-line options.
 struct Options final {
   /// Build file to load.
-  const char* input_file;
+  std::filesystem::path input_file;
 
   /// Directory to change into before running.
-  const char* working_dir;
+  std::filesystem::path working_dir;
 
   /// Tool to run rather than building.
   const Tool* tool;
@@ -99,7 +100,7 @@ struct NinjaMain final : public BuildLogUser {
   RealDiskInterface disk_interface_;
 
   /// The build directory, used for storing the build log etc.
-  std::string build_dir_;
+  std::filesystem::path build_dir_;
 
   BuildLog build_log_;
   DepsLog deps_log_;
@@ -109,7 +110,7 @@ struct NinjaMain final : public BuildLogUser {
 
   /// Get the Node for a given command-line path, handling features like
   /// spell correction.
-  Node* CollectTarget(const char* cpath, std::string* err);
+  Node* CollectTarget(std::filesystem::path const& cpath, std::string* err);
 
   /// CollectTarget for all command-line arguments, filling in \a targets.
   bool CollectTargetsFromArgs(int argc, char* argv[],
@@ -146,7 +147,7 @@ struct NinjaMain final : public BuildLogUser {
   /// Rebuild the manifest, if necessary.
   /// Fills in \a err on error.
   /// @return true if the manifest was rebuilt.
-  bool RebuildManifest(const char* input_file, std::string* err);
+  bool RebuildManifest(std::filesystem::path const& input_file, std::string* err);
 
   /// Build the targets listed on the command line.
   /// @return an exit code.
@@ -155,10 +156,13 @@ struct NinjaMain final : public BuildLogUser {
   /// Dump the output requested by '-d stats'.
   void DumpMetrics();
 
-  bool IsPathDead(std::string_view s) const override final {
-    Node* n = state_.LookupNode(s);
-    if (n && n->in_edge())
+  bool IsPathDead(std::filesystem::path const& p) const override final {
+    Node* n = state_.LookupNode(p);
+    if (!n || !n->in_edge())
+    {
       return false;
+    }
+
     // Just checking n isn't enough: If an old output is both in the build log
     // and in the deps log, it will have a Node object in state_.  (It will also
     // have an in edge if one of its inputs is another output that's in the deps
@@ -169,10 +173,12 @@ struct NinjaMain final : public BuildLogUser {
     // Do keep entries around for files which still exist on disk, for
     // generators that want to use this information.
     std::string err;
-    TimeStamp mtime = disk_interface_.Stat(std::string(s), &err);
-    if (mtime == -1)
+    TimeStamp mtime = disk_interface_.Stat(p, &err);
+    if(mtime == TimeStamp::max())
+    {
       Error("%s", err.c_str());  // Log and ignore Stat() errors.
-    return mtime == 0;
+    }
+    return mtime == TimeStamp::min();;
   }
 };
 
@@ -242,11 +248,14 @@ int GuessParallelism() {
 
 /// Rebuild the build manifest, if necessary.
 /// Returns true if the manifest was rebuilt.
-bool NinjaMain::RebuildManifest(const char* input_file, std::string* err) {
-  std::string path = input_file;
-  uint64_t slash_bits;  // Unused because this path is only used for lookup.
-  if (!CanonicalizePath(&path, &slash_bits, err))
+bool NinjaMain::RebuildManifest(std::filesystem::path const& input_file, std::string* err)
+{
+  std::error_code ec;
+  std::filesystem::path path = std::filesystem::canonical(input_file, ec);
+  if(ec)
+  {
     return false;
+  }
   Node* node = state_.LookupNode(path);
   if (!node)
     return false;
@@ -273,24 +282,31 @@ bool NinjaMain::RebuildManifest(const char* input_file, std::string* err) {
   return true;
 }
 
-Node* NinjaMain::CollectTarget(const char* cpath, std::string* err) {
-  std::string path = cpath;
-  uint64_t slash_bits;
-  if (!CanonicalizePath(&path, &slash_bits, err))
+Node* NinjaMain::CollectTarget(std::filesystem::path const& cpath, std::string* err)
+{
+  std::error_code ec;
+  std::filesystem::path path = std::filesystem::canonical(cpath, ec);
+  if(ec)
+  {
     return nullptr;
+  }
 
   // Special syntax: "foo.cc^" means "the first output of foo.cc".
   bool first_dependent = false;
-  if (!path.empty() && path[path.size() - 1] == '^') {
-    path.resize(path.size() - 1);
-    first_dependent = true;
+  {
+      std::string pathStr = path.string();
+      if (!pathStr.empty() && pathStr[pathStr.size() - 1] == '^') {
+        pathStr.resize(pathStr.size() - 1);
+        path = pathStr;
+        first_dependent = true;
+      }
   }
 
   Node* node = state_.LookupNode(path);
   if (node) {
     if (first_dependent) {
       if (node->out_edges().empty()) {
-        *err = string_concat("'", path, "' has no out edge");
+        *err = string_concat("'", path.generic_string(), "' has no out edge");
         return nullptr;
       }
       Edge* edge = node->out_edges()[0];
@@ -304,21 +320,21 @@ Node* NinjaMain::CollectTarget(const char* cpath, std::string* err) {
   }
   else
   {
-    *err = string_concat("unknown target '", Node::PathDecanonicalized(path, slash_bits), "'");
+    *err = string_concat("unknown target '", path.generic_string(), "'");
     if(path == "clean")
     {
-      string_append(*err, ", did you mean 'ninja -t clean'?");
+      err->append(", did you mean 'ninja -t clean'?");
     }
     else if(path == "help")
     {
-      string_append(*err, ", did you mean 'ninja -h'?");
+      err->append(", did you mean 'ninja -h'?");
     }
     else
     {
       Node* suggestion = state_.SpellcheckNode(path);
       if(suggestion)
       {
-          string_append(*err, ", did you mean '", suggestion->path(), "'?");
+        string_append(*err, ", did you mean '", suggestion->path().generic_string(), "'?");
       }
     }
     return nullptr;
@@ -376,7 +392,7 @@ int NinjaMain::ToolQuery(const Options* options, int argc, char* argv[]) {
       return 1;
     }
 
-    printf("%s:\n", node->path().c_str());
+    printf("%s:\n", node->path().generic_string().c_str());
     if (Edge* edge = node->in_edge()) {
       if (edge->dyndep_ && edge->dyndep_->dyndep_pending()) {
         if (!dyndep_loader.LoadDyndeps(edge->dyndep_, &err)) {
@@ -390,7 +406,7 @@ int NinjaMain::ToolQuery(const Options* options, int argc, char* argv[]) {
           label = "| ";
         else if (edge->is_order_only(in))
           label = "|| ";
-        printf("    %s%s\n", label, edge->inputs_[in]->path().c_str());
+        printf("    %s%s\n", label, edge->inputs_[in]->path().generic_string().c_str());
       }
     }
     printf("  outputs:\n");
@@ -398,7 +414,7 @@ int NinjaMain::ToolQuery(const Options* options, int argc, char* argv[]) {
     {
       for (const auto & out : edge->outputs_)
       {
-        printf("    %s\n", out->path().c_str());
+        printf("    %s\n", out->path().generic_string().c_str());
       }
     }
   }
@@ -429,24 +445,23 @@ int NinjaMain::ToolMSVC(const Options* options, int argc, char* argv[]) {
 #endif
 
 int ToolTargetsList(const std::vector<Node*>& nodes, int depth, int indent) {
-  for (const auto & node : nodes)
+  for(const auto & node : nodes)
   {
-    for (int i = 0; i < indent; ++i)
+    for(int i = 0; i < indent; ++i)
     {
       printf("  ");
     }
-    const char* target = node->path().c_str();
-    if (node->in_edge())
+    if(node->in_edge())
     {
-      printf("%s: %s\n", target, node->in_edge()->rule_->name().c_str());
-      if (depth > 1 || depth <= 0)
+      printf("%s: %s\n", node->path().generic_string().c_str(), node->in_edge()->rule_->name().c_str());
+      if(depth > 1 || depth <= 0)
       {
         ToolTargetsList(node->in_edge()->inputs_, depth - 1, indent + 1);
       }
     }
     else
     {
-      printf("%s\n", target);
+      printf("%s\n", node->path().generic_string().c_str());
     }
   }
   return 0;
@@ -459,7 +474,7 @@ int ToolTargetsSourceList(State* state) {
     {
       if (!input->in_edge())
       {
-        printf("%s\n", input->path().c_str());
+        printf("%s\n", input->path().generic_string().c_str());
       }
     }
   }
@@ -476,7 +491,7 @@ int ToolTargetsList(State* state, const std::string& rule_name) {
     {
       for (const auto & out_node : edge->outputs_)
       {
-        rules.insert(out_node->path());
+        rules.insert(out_node->path().generic_string());
       }
     }
   }
@@ -495,7 +510,7 @@ int ToolTargetsList(State* state) {
     for (const auto & out_node : edge->outputs_)
     {
       printf("%s: %s\n",
-             out_node->path().c_str(),
+             out_node->path().generic_string().c_str(),
              edge->rule_->name().c_str());
     }
   }
@@ -525,19 +540,21 @@ int NinjaMain::ToolDeps(const Options* options, int argc, char** argv) {
   {
     DepsLog::Deps* deps = deps_log_.GetDeps(node);
     if (!deps) {
-      printf("%s: deps not found\n", (node)->path().c_str());
+      printf("%s: deps not found\n", node->path().generic_string().c_str());
       continue;
     }
 
     std::string err;
     TimeStamp mtime = disk_interface.Stat(node->path(), &err);
-    if (mtime == -1)
+    if (mtime == TimeStamp::max())
       Error("%s", err.c_str());  // Log and ignore Stat() errors;
     printf("%s: #deps %d, deps mtime %" PRId64 " (%s)\n",
-           node->path().c_str(), deps->node_count, deps->mtime,
-           (!mtime || mtime > deps->mtime ? "STALE":"VALID"));
+           node->path().generic_string().c_str(),
+           deps->node_count,
+           std::chrono::duration_cast<std::chrono::nanoseconds>(deps->mtime.time_since_epoch()).count(),
+           (mtime != TimeStamp::min() || mtime > deps->mtime ? "STALE":"VALID"));
     for (int i = 0; i < deps->node_count; ++i)
-      printf("    %s\n", deps->nodes[i]->path().c_str());
+      printf("    %s\n", deps->nodes[i]->path().generic_string().c_str());
     printf("\n");
   }
 
@@ -766,11 +783,11 @@ std::string EvaluateCommandWithRspfile(const Edge* edge,
   if (mode == ECM_NORMAL)
     return command;
 
-  std::string rspfile = edge->GetUnescapedRspfile();
+  std::filesystem::path const& rspfile = edge->GetUnescapedRspfile();
   if (rspfile.empty())
     return command;
 
-  size_t index = command.find(rspfile);
+  size_t index = command.find(rspfile.string());
   if (index == 0 || index == std::string::npos || command[index - 1] != '@')
     return command;
 
@@ -781,7 +798,7 @@ std::string EvaluateCommandWithRspfile(const Edge* edge,
     rspfile_content.replace(newline_index, 1, 1, ' ');
     ++newline_index;
   }
-  command.replace(index - 1, rspfile.length() + 1, rspfile_content);
+  command.replace(index - 1, rspfile.string().length() + 1, rspfile_content);
   return command;
 }
 
@@ -792,9 +809,9 @@ void printCompdb(const char* const directory, const Edge* const edge,
   printf("\",\n    \"command\": \"");
   EncodeJSONString(EvaluateCommandWithRspfile(edge, eval_mode).c_str());
   printf("\",\n    \"file\": \"");
-  EncodeJSONString(edge->inputs_[0]->path().c_str());
+  EncodeJSONString(edge->inputs_[0]->path().generic_string().c_str());
   printf("\",\n    \"output\": \"");
-  EncodeJSONString(edge->outputs_[0]->path().c_str());
+  EncodeJSONString(edge->outputs_[0]->path().generic_string().c_str());
   printf("\"\n  }");
 }
 
@@ -906,9 +923,9 @@ int NinjaMain::ToolRestat(const Options* options, int argc, char* argv[]) {
   if (!EnsureBuildDirExists())
     return 1;
 
-  std::string log_path = ".ninja_log";
-  if (!build_dir_.empty())
-    log_path = build_dir_ + "/" + log_path;
+  std::filesystem::path log_path =  build_dir_.empty()
+                                  ? std::filesystem::path(".ninja_log")
+                                  : build_dir_ / ".ninja_log";
 
   std::string err;
   const LoadStatus status = build_log_.Load(log_path, &err);
@@ -933,7 +950,7 @@ int NinjaMain::ToolRestat(const Options* options, int argc, char* argv[]) {
   }
 
   if (!config_.dry_run) {
-    if (!build_log_.OpenForWrite(log_path, *this, &err)) {
+    if (!build_log_.OpenForWrite(log_path.generic_string(), *this, &err)) {
       Error("opening build log: %s", err.c_str());
       return EXIT_FAILURE;
     }
@@ -1116,9 +1133,9 @@ bool WarningEnable(const std::string& name, Options* options) {
 }
 
 bool NinjaMain::OpenBuildLog(bool recompact_only) {
-  std::string log_path = ".ninja_log";
-  if (!build_dir_.empty())
-    log_path = string_concat(build_dir_, "/", log_path);
+  std::filesystem::path log_path =   build_dir_.empty()
+                                   ? std::filesystem::path(".ninja_log")
+                                   : build_dir_ / ".ninja_log";
 
   std::string err;
   const LoadStatus status = build_log_.Load(log_path, &err);
@@ -1136,14 +1153,14 @@ bool NinjaMain::OpenBuildLog(bool recompact_only) {
     if (status == LOAD_NOT_FOUND) {
       return true;
     }
-    bool success = build_log_.Recompact(log_path, *this, &err);
+    bool success = build_log_.Recompact(log_path.generic_string(), *this, &err);
     if (!success)
       Error("failed recompaction: %s", err.c_str());
     return success;
   }
 
   if (!config_.dry_run) {
-    if (!build_log_.OpenForWrite(log_path, *this, &err)) {
+    if (!build_log_.OpenForWrite(log_path.generic_string(), *this, &err)) {
       Error("opening build log: %s", err.c_str());
       return false;
     }
@@ -1155,9 +1172,9 @@ bool NinjaMain::OpenBuildLog(bool recompact_only) {
 /// Open the deps log: load it, then open for writing.
 /// @return false on error.
 bool NinjaMain::OpenDepsLog(bool recompact_only) {
-  std::string path = ".ninja_deps";
-  if (!build_dir_.empty())
-    path = string_concat(build_dir_, "/", path);
+  std::filesystem::path path =   build_dir_.empty()
+                               ? std::filesystem::path(".ninja_deps")
+                               : build_dir_ / ".ninja_deps";
 
   std::string err;
   const LoadStatus status = deps_log_.Load(path, &state_, &err);
@@ -1175,14 +1192,14 @@ bool NinjaMain::OpenDepsLog(bool recompact_only) {
     if (status == LOAD_NOT_FOUND) {
       return true;
     }
-    bool success = deps_log_.Recompact(path, &err);
+    bool success = deps_log_.Recompact(path.generic_string(), &err);
     if (!success)
       Error("failed recompaction: %s", err.c_str());
     return success;
   }
 
   if (!config_.dry_run) {
-    if (!deps_log_.OpenForWrite(path, &err)) {
+    if (!deps_log_.OpenForWrite(path.generic_string(), &err)) {
       Error("opening deps log: %s", err.c_str());
       return false;
     }
@@ -1204,7 +1221,7 @@ void NinjaMain::DumpMetrics() {
 bool NinjaMain::EnsureBuildDirExists() {
   build_dir_ = state_.bindings_.LookupVariable("builddir");
   if (!build_dir_.empty() && !config_.dry_run) {
-    if (!disk_interface_.MakeDirs(build_dir_ + "/.") && errno != EEXIST) {
+    if (!disk_interface_.MakeDirs(build_dir_) && errno != EEXIST) {
       Error("creating build directory %s: %s",
             build_dir_.c_str(), strerror(errno));
       return false;
@@ -1383,16 +1400,22 @@ int ReadFlags(int* argc, char*** argv,
   if (exit_code >= 0)
     exit(exit_code);
 
-  if (options.working_dir) {
+  if( ! options.working_dir.empty()) {
     // The formatting of this std::string, complete with funny quotes, is
     // so Emacs can properly identify that the cwd has changed for
     // subsequent commands.
     // Don't print this if a tool is being used, so that tool output
     // can be piped into a file without this std::string showing up.
-    if (!options.tool)
-      printf("ninja: Entering directory `%s'\n", options.working_dir);
-    if (chdir(options.working_dir) < 0) {
-      Fatal("chdir to '%s' - %s", options.working_dir, strerror(errno));
+    if(!options.tool)
+    {
+      printf("ninja: Entering directory `%s'\n", options.working_dir.generic_string().c_str());
+    }
+
+    std::error_code err;
+    std::filesystem::current_path(options.working_dir, err);
+    if(err)
+    {
+      Fatal("chdir to '%s' - %s", options.working_dir.generic_string().c_str(), err.message().c_str());
     }
   }
 
@@ -1443,7 +1466,7 @@ int ReadFlags(int* argc, char*** argv,
       // Start the build over with the new manifest.
       continue;
     } else if (!err.empty()) {
-      Error("rebuilding '%s': %s", options.input_file, err.c_str());
+      Error("rebuilding '%s': %s", options.input_file.c_str(), err.c_str());
       exit(1);
     }
 
@@ -1454,7 +1477,7 @@ int ReadFlags(int* argc, char*** argv,
   }
 
   Error("manifest '%s' still dirty after %d tries\n",
-      options.input_file, kCycleLimit);
+      options.input_file.c_str(), kCycleLimit);
   exit(1);
 }
 

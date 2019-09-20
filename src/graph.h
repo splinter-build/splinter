@@ -15,13 +15,15 @@
 #ifndef NINJA_GRAPH_H_
 #define NINJA_GRAPH_H_
 
-#include <string>
-#include <vector>
-
+#include "util.h"
 #include "dyndep.h"
 #include "eval_env.h"
 #include "timestamp.h"
-#include "util.h"
+
+#include <string>
+#include <vector>
+#include <filesystem>
+
 
 struct BuildLog;
 struct DepfileParserOptions;
@@ -35,9 +37,8 @@ struct State;
 /// Information about a node in the dependency graph: the file, whether
 /// it's dirty, mtime, etc.
 struct Node final {
-  Node(std::string path, uint64_t slash_bits)
+  Node(std::filesystem::path path)
    : path_(std::move(path))
-   , slash_bits_(slash_bits)
   { }
 
   /// Return false on error.
@@ -51,33 +52,26 @@ struct Node final {
 
   /// Mark as not-yet-stat()ed and not dirty.
   void ResetState() {
-    mtime_ = -1;
+    mtime_ = TimeStamp::max();
     dirty_ = false;
   }
 
   /// Mark the Node as already-stat()ed and missing.
   void MarkMissing() {
-    mtime_ = 0;
+    mtime_ = TimeStamp::min();
   }
 
   bool exists() const {
-    return mtime_ != 0;
+    return mtime_ != TimeStamp::min();
   }
 
   bool status_known() const {
-    return mtime_ != -1;
+    return mtime_ != TimeStamp::max();
   }
 
-  const std::string& path() const { return path_; }
-  /// Get |path()| but use slash_bits to convert back to original slash styles.
-  std::string PathDecanonicalized() const {
-    return PathDecanonicalized(path_, slash_bits_);
-  }
-  static std::string PathDecanonicalized(const std::string& path,
-                                         uint64_t slash_bits);
-  uint64_t slash_bits() const { return slash_bits_; }
+  std::filesystem::path const& path() const { return path_; }
 
-  TimeStamp mtime() const { return mtime_; }
+  TimeStamp const& mtime() const { return mtime_; }
 
   bool dirty() const { return dirty_; }
   void set_dirty(bool dirty) { dirty_ = dirty; }
@@ -98,17 +92,13 @@ struct Node final {
   void Dump(const char* prefix="") const;
 
 private:
-  std::string path_;
-
-  /// Set bits starting from lowest for backslashes that were normalized to
-  /// forward slashes by CanonicalizePath. See |PathDecanonicalized|.
-  uint64_t slash_bits_;
+  std::filesystem::path path_;
 
   /// Possible values of mtime_:
-  ///   -1: file hasn't been examined
-  ///   0:  we looked, and file doesn't exist
-  ///   >0: actual file's mtime
-  TimeStamp mtime_ = -1;  // TODO: Use std::numeric_limits.
+  ///   TimeStamp::max(): file hasn't been examined, unknown
+  ///   TimeStamp::min(): we looked, and the file doesn't exist
+  ///   other value: actual file's mtime
+  TimeStamp mtime_ = TimeStamp::max();
 
   /// The Edge that produces this Node, or nullptr when there is no
   /// known edge to produce it.
@@ -153,11 +143,11 @@ struct Edge final {
   bool GetBindingBool(const std::string& key) const;
 
   /// Like GetBinding("depfile"), but without shell escaping.
-  std::string GetUnescapedDepfile() const;
+  std::filesystem::path GetUnescapedDepfile() const;
   /// Like GetBinding("dyndep"), but without shell escaping.
-  std::string GetUnescapedDyndep() const;
+  std::filesystem::path GetUnescapedDyndep() const;
   /// Like GetBinding("rspfile"), but without shell escaping.
-  std::string GetUnescapedRspfile() const;
+  std::filesystem::path GetUnescapedRspfile() const;
 
   void Dump(const char* prefix="") const;
 
@@ -200,7 +190,7 @@ struct Edge final {
   // 2) implicit outs, which the target generates but are not part of $out.
   // These are stored in outputs_ in that order, and we keep a count of
   // #2 to use when we need to access the various subsets.
-  int implicit_outs_ = 0;
+  size_t implicit_outs_ = 0;
   bool is_implicit_out(size_t index) const {
     return index >= outputs_.size() - implicit_outs_;
   }
@@ -235,7 +225,7 @@ struct ImplicitDepLoader final {
  private:
   /// Load implicit dependencies for \a edge from a depfile attribute.
   /// @return false on error (without filling \a err if info is just missing).
-  bool LoadDepFile(Edge* edge, const std::string& path, std::string* err);
+  bool LoadDepFile(Edge* edge, std::filesystem::path const& path, std::string* err);
 
   /// Load implicit dependencies for \a edge from the DepsLog.
   /// @return false on error (without filling \a err if info is just missing).
@@ -243,7 +233,7 @@ struct ImplicitDepLoader final {
 
   /// Preallocate \a count spaces in the input array on \a edge, returning
   /// an iterator pointing at the first new space.
-  std::vector<Node*>::iterator PreallocateSpace(Edge* edge, int count);
+  std::vector<Node*>::iterator PreallocateSpace(Edge* edge, size_t count);
 
   /// If we don't have a edge that generates this input already,
   /// create one; this makes us not abort if the input is missing,
@@ -300,8 +290,8 @@ struct DependencyScan final {
   bool LoadDyndeps(Node* node, DyndepFile* ddf, std::string* err) const;
 
  private:
-  bool RecomputeDirty(Node* node, std::vector<Node*>* stack, std::string* err);
-  bool VerifyDAG(Node* node, std::vector<Node*>* stack, std::string* err);
+  bool RecomputeDirty(Node* node, std::vector<Node*>& stack, std::string* err);
+  bool VerifyDAG(Node* node, std::vector<Node*>& stack, std::string* err);
 
   /// Recompute whether a given single output should be marked dirty.
   /// Returns true if so.

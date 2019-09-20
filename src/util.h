@@ -23,6 +23,7 @@
 
 #include <string>
 #include <vector>
+#include <filesystem>
 
 #include <stdio.h>
 
@@ -30,9 +31,11 @@
 [[noreturn]] void NinjaExitProcess();
 
 /// Log a fatal message and exit.
-template<typename ... ARGS_T>
-[[noreturn]] void Fatal(const char* msg, ARGS_T && ... args)
-{
+// template<size_t LEN, typename ... ARGS_T>
+// [[noreturn]] void Fatal(const char (&msg)[LEN], ARGS_T && ... args) __attribute__ ((format (printf, 1, 2)));
+template<size_t LEN, typename ... ARGS_T>
+[[noreturn]] void Fatal(const char (&msg)[LEN], ARGS_T && ... args)
+	{
   fprintf(stderr, "ninja: fatal: ");
   fprintf(stderr, msg, std::forward<ARGS_T>(args)...);
   fprintf(stderr, "\n");
@@ -40,8 +43,10 @@ template<typename ... ARGS_T>
 }
 
 /// Log a warning message.
-template<typename ... ARGS_T>
-void Warning(const char* msg, ARGS_T && ... args)
+// template<size_t LEN, typename ... ARGS_T>
+// void Warning(const char (&msg)[LEN], ARGS_T && ... args) __attribute__ ((format (printf, 1, 2)));
+template<size_t LEN, typename ... ARGS_T>
+void Warning(const char (&msg)[LEN], ARGS_T && ... args)
 {
   fprintf(stderr, "ninja: warning: ");
   fprintf(stderr, msg, std::forward<ARGS_T>(args)...);
@@ -49,8 +54,10 @@ void Warning(const char* msg, ARGS_T && ... args)
 }
 
 /// Log an error message.
-template<typename ... ARGS_T>
-void Error(const char* msg, ARGS_T && ... args)
+// template<size_t LEN, typename ... ARGS_T>
+// void Error(const char (&msg)[LEN], ARGS_T && ... args) __attribute__ ((format (printf, 1, 2)));
+template<size_t LEN, typename ... ARGS_T>
+void Error(const char (&msg)[LEN], ARGS_T && ... args)
 {
   fprintf(stderr, "ninja: error: ");
   fprintf(stderr, msg, std::forward<ARGS_T>(args)...);
@@ -72,14 +79,6 @@ void Error(const char* msg, ARGS_T && ... args)
 #define NINJA_FALLTHROUGH
 #endif
 
-/// Canonicalize a path like "foo/../bar.h" into just "bar.h".
-/// |slash_bits| has bits set starting from lowest for a backslash that was
-/// normalized to a forward slash. (only used on Windows)
-bool CanonicalizePath(std::string* path, uint64_t* slash_bits,
-                      std::string* err);
-bool CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits,
-                      std::string* err);
-
 /// Appends |input| to |*result|, escaping according to the whims of either
 /// Bash, or Win32's CommandLineToArgvW().
 /// Appends the string directly to |result| without modification if we can
@@ -90,7 +89,7 @@ void GetWin32EscapedString(const std::string& input, std::string* result);
 /// Read a file to a string (in text mode: with CRLF conversion
 /// on Windows).
 /// Returns -errno and fills in \a err on error.
-int ReadFile(const std::string& path, std::string* contents, std::string* err);
+int ReadFile(std::filesystem::path const& path, std::string* contents, std::string* err);
 
 /// Mark a file descriptor to not be inherited on exec()s.
 void SetCloseOnExec(int fd);
@@ -102,8 +101,6 @@ const char* SpellcheckStringV(const std::string& text,
 
 /// Like SpellcheckStringV, but takes a nullptr-terminated list.
 const char* SpellcheckString(const char* text, ...);
-
-bool islatinalpha(int c);
 
 /// Removes all Ansi escape codes (http://www.termsys.demon.co.uk/vtansi.htm).
 std::string StripAnsiEscapeCodes(const std::string& in);
@@ -121,7 +118,7 @@ double GetLoadAverage();
 std::string ElideMiddle(std::string_view str, size_t width);
 
 /// Truncates a file to the given size.
-bool Truncate(const std::string& path, size_t size, std::string* err);
+bool Truncate(std::filesystem::path const& path, size_t size, std::string* err);
 
 #ifdef _MSC_VER
 #define snprintf _snprintf
@@ -140,5 +137,16 @@ std::string GetLastErrorString();
 /// Calls Fatal() with a function name and GetLastErrorString.
 [[noreturn]] void Win32Fatal(const char* function, const char* hint = nullptr);
 #endif
+
+namespace std
+{
+    template <> struct hash<std::filesystem::path>
+    {
+        size_t operator()(std::filesystem::path x) const
+        {
+            return std::filesystem::hash_value(x);
+        }
+    };
+}
 
 #endif  // NINJA_UTIL_H_

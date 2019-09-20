@@ -17,6 +17,7 @@
 
 #include <set>
 #include <string>
+#include <filesystem>
 
 /// Visual Studio's cl.exe requires some massaging to work with Ninja;
 /// for example, it emits include information on stderr in a funny
@@ -45,7 +46,7 @@ struct CLParser final {
   bool Parse(const std::string& output, const std::string& deps_prefix,
              std::string* filtered_output, std::string* err);
 
-  std::set<std::string> includes_;
+  std::set<std::filesystem::path> includes_;
 };
 
 #endif  // NINJA_CLPARSER_H_

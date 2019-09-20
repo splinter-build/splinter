@@ -18,6 +18,7 @@
 #include <map>
 #include <set>
 #include <vector>
+#include <filesystem>
 #include <string_view>
 #include <unordered_map>
 
@@ -93,13 +94,13 @@ struct State final {
 
   Edge* AddEdge(const Rule* rule);
 
-  Node* GetNode(std::string_view path, uint64_t slash_bits);
-  Node* LookupNode(std::string_view path) const;
-  Node* SpellcheckNode(std::string_view path);
+  Node* GetNode(std::filesystem::path const& path);
+  Node* LookupNode(std::filesystem::path const& path) const;
+  Node* SpellcheckNode(std::filesystem::path const& path);
 
-  void AddIn(Edge* edge, std::string_view path, uint64_t slash_bits);
-  bool AddOut(Edge* edge, std::string_view path, uint64_t slash_bits);
-  bool AddDefault(std::string_view path, std::string* error);
+  void AddIn(Edge* edge, std::filesystem::path const& path);
+  bool AddOut(Edge* edge, std::filesystem::path const& path);
+  bool AddDefault(std::filesystem::path const& path, std::string* error);
 
   /// Reset state.  Keeps all nodes and edges, but restores them to the
   /// state where we haven't yet examined the disk for dirty state.
@@ -114,7 +115,7 @@ struct State final {
   std::vector<Node*> DefaultNodes(std::string* error) const;
 
   /// Mapping of path -> Node.
-  using Paths = std::unordered_map<std::string_view, Node*>;
+  using Paths = std::unordered_map<std::filesystem::path, Node*>;
   Paths paths_;
 
   /// All the pools used in the graph.

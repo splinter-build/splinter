@@ -16,6 +16,7 @@
 #define NINJA_STRINGPIECE_UTIL_H_
 
 #include <vector>
+#include <string>
 #include <string_view>
 
 std::vector<std::string_view> SplitStringPiece(std::string_view input, char sep);

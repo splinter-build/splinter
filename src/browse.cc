@@ -25,7 +25,7 @@
 using namespace std;
 
 void RunBrowsePython(State* state, const char* ninja_command,
-                     const char* input_file, int argc, char* argv[]) {
+                     std::filesystem::path const& input_file, int argc, char* argv[]) {
   // Fork off a Python process and have it run our code via its stdin.
   // (Actually the Python process becomes the parent.)
   int pipefd[2];
@@ -54,7 +54,7 @@ void RunBrowsePython(State* state, const char* ninja_command,
       command.push_back("--ninja-command");
       command.push_back(ninja_command);
       command.push_back("-f");
-      command.push_back(input_file);
+      command.push_back(input_file.c_str());
       for (int i = 0; i < argc; i++) {
           command.push_back(argv[i]);
       }

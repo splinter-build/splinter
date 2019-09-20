@@ -94,9 +94,8 @@ void StateTestWithBuiltinRules::AddCatRule(State* state) {
 "  command = cat $in > $out\n");
 }
 
-Node* StateTestWithBuiltinRules::GetNode(const std::string& path) {
-  EXPECT_FALSE(strpbrk(path.c_str(), "/\\"));
-  return state_.GetNode(path, 0);
+Node* StateTestWithBuiltinRules::GetNode(std::filesystem::path const& path) {
+  return state_.GetNode(path);
 }
 
 void AssertParse(State* state, const char* input,
@@ -145,33 +144,33 @@ void VerifyGraph(const State& state) {
   EXPECT_EQ(node_edge_set, edge_set);
 }
 
-void VirtualFileSystem::Create(const std::string& path,
-                               const std::string& contents) {
+void VirtualFileSystem::Create(std::filesystem::path const& path,
+                               std::string_view contents) {
   files_[path].mtime = now_;
   files_[path].contents = contents;
   files_created_.insert(path);
 }
 
-TimeStamp VirtualFileSystem::Stat(const std::string& path, std::string* err) const {
+TimeStamp VirtualFileSystem::Stat(std::filesystem::path const& path, std::string* err) const {
   FileMap::const_iterator i = files_.find(path);
   if (i != files_.end()) {
     *err = i->second.stat_error;
     return i->second.mtime;
   }
-  return 0;
+  return TimeStamp::min();
 }
 
-bool VirtualFileSystem::WriteFile(const std::string& path, const std::string& contents) {
+bool VirtualFileSystem::WriteFile(std::filesystem::path const& path, std::string_view contents) {
   Create(path, contents);
   return true;
 }
 
-bool VirtualFileSystem::MakeDir(const std::string& path) {
+bool VirtualFileSystem::MakeDir(std::filesystem::path const& path) {
   directories_made_.push_back(path);
   return true;  // success
 }
 
-FileReader::Status VirtualFileSystem::ReadFile(const std::string& path,
+FileReader::Status VirtualFileSystem::ReadFile(std::filesystem::path const& path,
                                                std::string* contents,
                                                std::string* err) {
   files_read_.push_back(path);
@@ -184,7 +183,7 @@ FileReader::Status VirtualFileSystem::ReadFile(const std::string& path,
   return NotFound;
 }
 
-int VirtualFileSystem::RemoveFile(const std::string& path) {
+int VirtualFileSystem::RemoveFile(std::filesystem::path const& path) {
   if (find(directories_made_.begin(), directories_made_.end(), path)
       != directories_made_.end())
     return -1;
@@ -196,6 +195,25 @@ int VirtualFileSystem::RemoveFile(const std::string& path) {
   } else {
     return 1;
   }
+}
+
+bool VirtualFileSystem::MakeDirs(std::filesystem::path const& path)
+{
+    std::filesystem::path work = path;
+    work.remove_filename();
+    work = work.parent_path();
+
+    if(work == work.root_directory())
+    {
+        return true;
+    }
+
+    if( ! MakeDirs(work))
+    {
+        return false;
+    }
+
+    return MakeDir(work);
 }
 
 void ScopedTempDir::CreateAndEnter(const std::string& name) {

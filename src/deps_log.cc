@@ -119,10 +119,12 @@ bool DepsLog::RecordDeps(Node* node, TimeStamp mtime,
   int id = node->id();
   if (fwrite(&id, 4, 1, file_) < 1)
     return false;
-  uint32_t mtime_part = static_cast<uint32_t>(mtime & 0xffffffff);
+
+  auto const ns_since_epoch = std::chrono::duration_cast<std::chrono::nanoseconds>(mtime.time_since_epoch());
+  uint32_t mtime_part = static_cast<uint32_t>(ns_since_epoch.count() & 0xffffffff);
   if (fwrite(&mtime_part, 4, 1, file_) < 1)
     return false;
-  mtime_part = static_cast<uint32_t>((mtime >> 32) & 0xffffffff);
+  mtime_part = static_cast<uint32_t>((ns_since_epoch.count() >> 32) & 0xffffffff);
   if (fwrite(&mtime_part, 4, 1, file_) < 1)
     return false;
   for (int i = 0; i < node_count; ++i) {
@@ -149,10 +151,10 @@ void DepsLog::Close() {
   file_ = nullptr;
 }
 
-LoadStatus DepsLog::Load(const std::string& path, State* state, std::string* err) {
+LoadStatus DepsLog::Load(std::filesystem::path const& path, State* state, std::string* err) {
   METRIC_RECORD(".ninja_deps load");
   char buf[kMaxRecordSize + 1];
-  FILE* f = fopen(path.c_str(), "rb");
+  FILE* f = fopen(path.generic_string().c_str(), "rb");
   if (!f) {
     if (errno == ENOENT)
       return LOAD_NOT_FOUND;
@@ -175,7 +177,7 @@ LoadStatus DepsLog::Load(const std::string& path, State* state, std::string* err
     else
       *err = "bad deps log signature or version; starting over";
     fclose(f);
-    unlink(path.c_str());
+    unlink(path.generic_string().c_str());
     // Don't report this as a failure.  An empty deps log will cause
     // us to rebuild the outputs anyway.
     return LOAD_SUCCESS;
@@ -206,9 +208,8 @@ LoadStatus DepsLog::Load(const std::string& path, State* state, std::string* err
       assert(size % 4 == 0);
       int* deps_data = reinterpret_cast<int*>(buf);
       int out_id = deps_data[0];
-      TimeStamp mtime;
-      mtime = (TimeStamp)(((uint64_t)(unsigned int)deps_data[2] << 32) |
-                          (uint64_t)(unsigned int)deps_data[1]);
+      TimeStamp mtime(TimeStamp::duration(  ((uint64_t)(unsigned int)deps_data[2] << 32)
+                                          |  (uint64_t)(unsigned int)deps_data[1]));
       deps_data += 3;
       int deps_count = (size / 4) - 3;
 
@@ -224,18 +225,13 @@ LoadStatus DepsLog::Load(const std::string& path, State* state, std::string* err
         ++unique_dep_record_count;
     } else {
       int path_size = size - 4;
-      assert(path_size > 0);  // CanonicalizePath() rejects empty paths.
+      assert(path_size > 0);
       // There can be up to 3 bytes of padding.
       if (buf[path_size - 1] == '\0') --path_size;
       if (buf[path_size - 1] == '\0') --path_size;
       if (buf[path_size - 1] == '\0') --path_size;
       std::string_view subpath(buf, path_size);
-      // It is not necessary to pass in a correct slash_bits here. It will
-      // either be a Node that's in the manifest (in which case it will already
-      // have a correct slash_bits that GetNode will look up), or it is an
-      // implicit dependency from a .d which does not affect the build command
-      // (and so need not have its slashes maintained).
-      Node* node = state->GetNode(subpath, 0);
+      Node* node = state->GetNode(subpath);
 
       // Check that the expected index matches the actual index. This can only
       // happen if two ninja processes write to the same deps log concurrently.
@@ -372,7 +368,8 @@ bool DepsLog::UpdateDeps(int out_id, Deps* deps) {
 }
 
 bool DepsLog::RecordId(Node* node) {
-  int path_size = node->path().size();
+  // TODO: Innefficent.
+  int path_size = node->path().string().size();
   int padding = (4 - path_size % 4) % 4;  // Pad path to 4 byte boundary.
 
   unsigned size = path_size + padding + 4;
@@ -386,8 +383,8 @@ bool DepsLog::RecordId(Node* node) {
   }
   if (fwrite(&size, 4, 1, file_) < 1)
     return false;
-  if (fwrite(node->path().data(), path_size, 1, file_) < 1) {
-    assert(!node->path().empty());
+  if (fwrite(node->path().c_str(), path_size, 1, file_) < 1) {
+    assert(path_size > 0);
     return false;
   }
   if (padding && fwrite("\0\0", padding, 1, file_) < 1)

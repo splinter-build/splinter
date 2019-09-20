@@ -117,6 +117,9 @@ if(WIN32)
 		target_sources(libninja PRIVATE src/minidump-win32.cc)
 	endif()
 else()
+	if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+		target_link_libraries(libninja PUBLIC stdc++fs)
+	endif()
 	target_sources(libninja PRIVATE src/subprocess-posix.cc)
 endif()
 
@@ -189,7 +192,6 @@ if(BUILD_TESTING)
 
   foreach(perftest
     build_log_perftest
-    canon_perftest
     clparser_perftest
     depfile_parser_perftest
     hash_collision_bench

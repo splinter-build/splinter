@@ -38,7 +38,7 @@ bool DyndepLoader::LoadDyndeps(Node* node, DyndepFile* ddf,
   node->set_dyndep_pending(false);
 
   // Load the dyndep information from the file.
-  EXPLAIN("loading dyndep file '%s'", node->path().c_str());
+  EXPLAIN("loading dyndep file '%s'", node->path().generic_string().c_str());
   if (!LoadDyndepFile(node, ddf, err))
     return false;
 
@@ -51,9 +51,9 @@ bool DyndepLoader::LoadDyndeps(Node* node, DyndepFile* ddf,
     DyndepFile::iterator ddi = ddf->find(edge);
     if (ddi == ddf->end()) {
       *err = string_concat("'",
-                           edge->outputs_[0]->path(),
+                           edge->outputs_[0]->path().generic_string(),
                            "' not mentioned in its dyndep file '",
-                           node->path(),
+                           node->path().generic_string(),
                            "'");
       return false;
     }
@@ -69,12 +69,10 @@ bool DyndepLoader::LoadDyndeps(Node* node, DyndepFile* ddf,
   for (auto const& [edge, dyndep] : *ddf) {
     if (!dyndep.used_) {
       *err = string_concat("dyndep file '",
-                           node->path(),
-                           "' mentions output ",
-                           "'",
-                           edge->outputs_[0]->path(),
-                           "' whose build statement ",
-                           "does not have a dyndep binding for the file");
+                           node->path().generic_string(),
+                           "' mentions output '",
+                           edge->outputs_[0]->path().generic_string(),
+                           "' whose build statement does not have a dyndep binding for the file");
       return false;
     }
   }
@@ -101,7 +99,7 @@ bool DyndepLoader::UpdateEdge(Edge* edge, Dyndeps const* dyndeps,
   {
     if(output->in_edge() != nullptr)
     {
-      *err = "multiple rules generate " + output->path();
+      *err = string_concat("multiple rules generate ", output->path().generic_string());
       return false;
     }
     output->set_in_edge(edge);

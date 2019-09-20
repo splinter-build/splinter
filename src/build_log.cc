@@ -148,15 +148,14 @@ bool BuildLog::RecordCommand(Edge* edge, int start_time, int end_time,
   uint64_t command_hash = LogEntry::HashCommand(command);
   for (const auto & item : edge->outputs_)
   {
-    const std::string& path = item->path();
     LogEntry* log_entry;
-    if(auto const& i = entries_.find(path); i != entries_.end())
+    if(auto const& i = entries_.find(item->path()); i != entries_.end())
     {
       log_entry = i->second;
     }
     else
     {
-      log_entry = new LogEntry(path);
+      log_entry = new LogEntry(item->path().string());
       entries_.emplace(log_entry->output, log_entry);
     }
     log_entry->command_hash = command_hash;
@@ -267,9 +266,9 @@ struct LineReader final {
   char* line_end_ = nullptr;
 };
 
-LoadStatus BuildLog::Load(const std::string& path, std::string* err) {
+LoadStatus BuildLog::Load(std::filesystem::path const& path, std::string* err) {
   METRIC_RECORD(".ninja_log load");
-  FILE* file = fopen(path.c_str(), "r");
+  FILE* file = fopen(path.generic_string().c_str(), "r");
   if (!file) {
     if (errno == ENOENT)
       return LOAD_NOT_FOUND;
@@ -292,7 +291,7 @@ LoadStatus BuildLog::Load(const std::string& path, std::string* err) {
         *err = ("build log version invalid, perhaps due to being too old; "
                 "starting over");
         fclose(file);
-        unlink(path.c_str());
+        unlink(path.generic_string().c_str());
         // Don't report this as a failure.  An empty build log will cause
         // us to rebuild the outputs anyway.
         return LOAD_SUCCESS;
@@ -312,7 +311,7 @@ LoadStatus BuildLog::Load(const std::string& path, std::string* err) {
     *end = 0;
 
     int start_time = 0, end_time = 0;
-    TimeStamp restat_mtime = 0;
+    TimeStamp restat_mtime = TimeStamp::min();
 
     start_time = atoi(start);
     start = end + 1;
@@ -328,7 +327,7 @@ LoadStatus BuildLog::Load(const std::string& path, std::string* err) {
     if (!end)
       continue;
     *end = 0;
-    restat_mtime = strtoll(start, nullptr, 10);
+    restat_mtime = TimeStamp(TimeStamp::duration(strtoll(start, nullptr, 10)));
     start = end + 1;
 
     end = (char*)memchr(start, kFieldSeparator, line_end - start);
@@ -391,7 +390,7 @@ BuildLog::LogEntry* BuildLog::LookupByOutput(const std::string& path) {
 
 bool BuildLog::WriteEntry(FILE* f, const LogEntry& entry) {
   return fprintf(f, "%d\t%d\t%" PRId64 "\t%s\t%" PRIx64 "\n",
-          entry.start_time, entry.end_time, entry.mtime,
+          entry.start_time, entry.end_time, std::chrono::duration_cast<std::chrono::nanoseconds>(entry.mtime.time_since_epoch()).count(),
           entry.output.c_str(), entry.command_hash) > 0;
 }
 
@@ -413,15 +412,17 @@ bool BuildLog::Recompact(const std::string& path, const BuildLogUser& user,
     return false;
   }
 
-  std::vector<std::string_view> dead_outputs;
-  for (auto const& [pathKey, entry] : entries_)
+  std::vector<std::filesystem::path> dead_outputs;
+  for(auto const& [pathKey, entry] : entries_)
   {
-    if (user.IsPathDead(pathKey)) {
+    if(user.IsPathDead(pathKey))
+    {
       dead_outputs.push_back(pathKey);
       continue;
     }
 
-    if (!WriteEntry(f, *entry)) {
+    if( ! WriteEntry(f, *entry))
+    {
       *err = strerror(errno);
       fclose(f);
       return false;
@@ -434,12 +435,14 @@ bool BuildLog::Recompact(const std::string& path, const BuildLogUser& user,
   }
 
   fclose(f);
-  if (unlink(path.c_str()) < 0) {
+  if(unlink(path.c_str()) < 0)
+  {
     *err = strerror(errno);
     return false;
   }
 
-  if (rename(temp_path.c_str(), path.c_str()) < 0) {
+  if(rename(temp_path.c_str(), path.c_str()) < 0)
+  {
     *err = strerror(errno);
     return false;
   }
@@ -447,21 +450,28 @@ bool BuildLog::Recompact(const std::string& path, const BuildLogUser& user,
   return true;
 }
 
-bool BuildLog::Restat(std::string_view path,
-                      const DiskInterface& disk_interface,
-                      const int output_count, char** outputs,
-                      std::string* const err) {
+bool BuildLog::Restat(std::filesystem::path const& path,
+                      const DiskInterface&         disk_interface,
+                      const int                    output_count,
+                      char**                       outputs,
+                      std::string* const           err)
+{
   METRIC_RECORD(".ninja_log restat");
 
   Close();
-  std::string temp_path = std::string(path) + ".restat";
-  FILE* f = fopen(temp_path.c_str(), "wb");
-  if (!f) {
+
+  std::filesystem::path temp_path = path;
+  temp_path += std::string_view(".restat");
+
+  FILE* f = fopen(temp_path.generic_string().c_str(), "wb");
+  if( ! f)
+  {
     *err = strerror(errno);
     return false;
   }
 
-  if (fprintf(f, kFileSignature, kCurrentVersion) < 0) {
+  if(fprintf(f, kFileSignature, kCurrentVersion) < 0)
+  {
     *err = strerror(errno);
     fclose(f);
     return false;
@@ -482,7 +492,7 @@ bool BuildLog::Restat(std::string_view path,
     if( ! skip)
     {
       const TimeStamp mtime = disk_interface.Stat(entry.second->output, err);
-      if (mtime == -1)
+      if(mtime == TimeStamp::max())
       {
         fclose(f);
         return false;
@@ -499,12 +509,12 @@ bool BuildLog::Restat(std::string_view path,
   }
 
   fclose(f);
-  if (unlink(std::string(path).c_str()) < 0) {
+  if (unlink(path.generic_string().c_str()) < 0) {
     *err = strerror(errno);
     return false;
   }
 
-  if (rename(temp_path.c_str(), std::string(path).c_str()) < 0) {
+  if (rename(temp_path.generic_string().c_str(), path.generic_string().c_str()) < 0) {
     *err = strerror(errno);
     return false;
   }

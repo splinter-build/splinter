@@ -31,7 +31,7 @@ using namespace std;
 const char kTestFilename[] = "BuildLogPerfTest-tempfile";
 
 struct NoDeadPaths : public BuildLogUser {
-  bool IsPathDead(std::string_view) const override final { return false; }
+  bool IsPathDead(std::filesystem::path const&) const override final { return false; }
 };
 
 bool WriteTestData(std::string* err) {
@@ -94,7 +94,7 @@ bool WriteTestData(std::string* err) {
     log.RecordCommand(state.edges_[i],
                       /*start_time=*/100 * i,
                       /*end_time=*/100 * i + 1,
-                      /*mtime=*/0);
+                      /*mtime=*/TimeStamp::min());
   }
 
   return true;

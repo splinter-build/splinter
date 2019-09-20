@@ -118,7 +118,7 @@ struct StateTestWithBuiltinRules : public testing::Test {
   void AddCatRule(State* state);
 
   /// Short way to get a Node by its path from state_.
-  Node* GetNode(const std::string& path);
+  Node* GetNode(std::filesystem::path const& path);
 
   State state_;
 };
@@ -135,38 +135,44 @@ struct VirtualFileSystem final : public DiskInterface {
   VirtualFileSystem() = default;
 
   /// "Create" a file with contents.
-  void Create(const std::string& path, const std::string& contents);
+  void Create(std::filesystem::path const& path,
+              std::string_view contents);
 
   /// Tick "time" forwards; subsequent file operations will be newer than
   /// previous ones.
-  int Tick() {
-    return ++now_;
+  TimeStamp Tick() {
+    // Can use ++ in C++20.
+    now_ += TimeStamp::duration(1);
+    return now_;
   }
 
   // DiskInterface
-  TimeStamp Stat(const std::string& path, std::string* err) const override final;
-  bool WriteFile(const std::string& path, const std::string& contents) override final;
-  bool MakeDir(const std::string& path) override final;
-  Status ReadFile(const std::string& path, std::string* contents,
+  TimeStamp Stat(std::filesystem::path const& path, std::string* err) const override final;
+  bool WriteFile(std::filesystem::path const& path, std::string_view contents) override final;
+  bool MakeDir(std::filesystem::path const& path) override final;
+  Status ReadFile(std::filesystem::path const& path, std::string* contents,
                   std::string* err) override final;
-  int RemoveFile(const std::string& path) override final;
+  int RemoveFile(std::filesystem::path const& path) override final;
+  bool MakeDirs(std::filesystem::path const& path) override final;
 
   /// An entry for a single in-memory file.
   struct Entry final {
-    int mtime;
+    TimeStamp mtime;
     std::string stat_error;  // If mtime is -1.
     std::string contents;
   };
 
-  std::vector<std::string> directories_made_;
-  std::vector<std::string> files_read_;
-  typedef std::map<std::string, Entry, std::less<>> FileMap;
+  std::vector<std::filesystem::path> directories_made_;
+  std::vector<std::filesystem::path> files_read_;
+  typedef std::map<std::filesystem::path, Entry, std::less<>> FileMap;
   FileMap files_;
-  std::set<std::string> files_removed_;
-  std::set<std::string> files_created_;
+  std::set<std::filesystem::path> files_removed_;
+  std::set<std::filesystem::path> files_created_;
 
   /// A simple fake timestamp for file operations.
-  int now_ = 1;
+  /// Set to 1 just to have a default value.
+  static constexpr auto timestart = TimeStamp(TimeStamp::duration(1));
+  TimeStamp now_ = timestart;
 };
 
 struct ScopedTempDir final {

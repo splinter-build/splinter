@@ -136,8 +136,10 @@ void BuildStatus::BuildEdgeFinished(Edge* edge,
   // Print the command that is spewing before printing its output.
   if (!success) {
     std::string outputs;
-    for (const auto & item : edge->outputs_)
-      outputs += item->path() + " ";
+    for(const auto & item : edge->outputs_)
+    {
+        string_append(outputs, item->path().generic_string().c_str(), " ");
+    }
 
     if (printer_.supports_color()) {
         printer_.PrintOnNewLine(string_concat("\x1B[31m" "FAILED: " "\x1B[0m", outputs, "\n"));
@@ -319,59 +321,74 @@ void Plan::Reset() {
   want_.clear();
 }
 
-bool Plan::AddTarget(const Node* node, std::string* err) {
+bool Plan::AddTarget(const Node* node, std::string* err)
+{
   return AddSubTarget(node, nullptr, err, nullptr);
 }
 
-bool Plan::AddSubTarget(const Node* node, const Node* dependent, std::string* err,
-                        std::set<Edge*>* dyndep_walk) {
+bool Plan::AddSubTarget(const Node*      node,
+                        const Node*      dependent,
+                        std::string*     err,
+                        std::set<Edge*>* dyndep_walk)
+{
   Edge* edge = node->in_edge();
-  if (!edge) {  // Leaf node.
-    if (node->dirty())
+  if( ! edge) // Leaf node.
+  {
+    if(node->dirty())
     {
       if(dependent)
       {
-        *err = string_concat("'", node->path(), "', needed by '", dependent->path(), "', missing and no known rule to make it");
+        *err = string_concat("'", node->path().generic_string().c_str(), "', needed by '", dependent->path().generic_string().c_str(), "', missing and no known rule to make it");
       }
       else
       {
-        *err = string_concat("'", node->path(), "'", " missing and no known rule to make it");
+        *err = string_concat("'", node->path().generic_string().c_str(), "'", " missing and no known rule to make it");
       }
     }
     return false;
   }
 
-  if (edge->outputs_ready())
+  if(edge->outputs_ready())
+  {
     return false;  // Don't need to do anything.
+  }
 
   // If an entry in want_ does not already exist for edge, create an entry which
   // maps to kWantNothing, indicating that we do not want to build this entry itself.
   auto const& [it, success] = want_.emplace(edge, kWantNothing);
   Want& want = it->second;
 
-  if (dyndep_walk && want == kWantToFinish)
+  if(dyndep_walk && (want == kWantToFinish))
+  {
     return false;  // Don't need to do anything with already-scheduled edge.
+  }
 
   // If we do need to build edge and we haven't already marked it as wanted,
   // mark it now.
-  if (node->dirty() && want == kWantNothing) {
+  if(node->dirty() && (want == kWantNothing))
+  {
     want = kWantToStart;
     EdgeWanted(edge);
-    if (!dyndep_walk && edge->AllInputsReady())
+    if( ! dyndep_walk && edge->AllInputsReady())
+    {
       ScheduleWork(it);
+    }
   }
 
-  if (dyndep_walk)
+  if(dyndep_walk)
+  {
     dyndep_walk->insert(edge);
+  }
 
   if( ! success)
   {
     return true;  // We've already processed the inputs.
   }
 
-  for (const auto & item : edge->inputs_)
+  for(auto const& item : edge->inputs_)
   {
-    if (!AddSubTarget(item, node, err, dyndep_walk) && !err->empty())
+    if(   ! AddSubTarget(item, node, err, dyndep_walk)
+       && ! err->empty())
     {
         return false;
     }
@@ -383,7 +400,9 @@ bool Plan::AddSubTarget(const Node* node, const Node* dependent, std::string* er
 void Plan::EdgeWanted(const Edge* edge) {
   ++wanted_edges_;
   if (!edge->is_phony())
+  {
     ++command_edges_;
+  }
 }
 
 Edge* Plan::FindWork() {
@@ -758,7 +777,7 @@ void Builder::Cleanup() {
 
     for (const auto & item : active_edges)
     {
-      std::string depfile = item->GetUnescapedDepfile();
+      std::filesystem::path const& depfile = item->GetUnescapedDepfile();
       for (const auto & inner : item->outputs_)
       {
         // Only delete this output if it was actually modified.  This is
@@ -770,7 +789,7 @@ void Builder::Cleanup() {
         // but is interrupted before it touches its output file.)
         std::string err;
         TimeStamp new_mtime = disk_interface_->Stat(inner->path(), &err);
-        if (new_mtime == -1)  // Log and ignore Stat() errors.
+        if (new_mtime == TimeStamp::max())  // Log and ignore Stat() errors.
           Error("%s", err.c_str());
         if (!depfile.empty() || inner->mtime() != new_mtime)
           disk_interface_->RemoveFile(inner->path());
@@ -781,7 +800,7 @@ void Builder::Cleanup() {
   }
 }
 
-Node* Builder::AddTarget(const std::string& name, std::string* err) {
+Node* Builder::AddTarget(std::filesystem::path const& name, std::string* err) {
   if(Node* node = state_->LookupNode(name); node)
   {
     if(AddTarget(node, err))
@@ -795,27 +814,27 @@ Node* Builder::AddTarget(const std::string& name, std::string* err) {
   }
   else
   {
-    *err = string_concat("unknown target: '", name, "'");
+    *err = string_concat("unknown target: '", name.generic_string().c_str(), "'");
     return nullptr;
   }
 }
 
-bool Builder::AddTarget(Node* node, std::string* err) {
-  if (!scan_.RecomputeDirty(node, err))
+bool Builder::AddTarget(Node* node, std::string* err)
+{
+  if( ! scan_.RecomputeDirty(node, err))
+  {
     return false;
+  }
 
   if(Edge* in_edge = node->in_edge(); in_edge)
   {
-    if (in_edge->outputs_ready())
+    if(in_edge->outputs_ready())
     {
       return true;  // Nothing to do.
     }
   }
 
-  if (!plan_.AddTarget(node, err))
-    return false;
-
-  return true;
+  return plan_.AddTarget(node, err);
 }
 
 bool Builder::AlreadyUpToDate() const {
@@ -933,7 +952,7 @@ bool Builder::StartEdge(Edge* edge, std::string* err) {
 
   // Create response file, if needed
   // XXX: this may also block; do we care?
-  if(std::string const& rspfile = edge->GetUnescapedRspfile(); ! rspfile.empty())
+  if(std::filesystem::path const& rspfile = edge->GetUnescapedRspfile(); ! rspfile.empty())
   {
     if(std::string const& content = edge->GetBinding("rspfile_content");
        ! disk_interface_->WriteFile(rspfile, content))
@@ -986,14 +1005,14 @@ bool Builder::FinishCommand(CommandRunner::Result* result, std::string* err) {
   }
 
   // Restat the edge outputs
-  TimeStamp output_mtime = 0;
+  TimeStamp output_mtime = TimeStamp::min();
   bool restat = edge->GetBindingBool("restat");
   if (!config_.dry_run) {
     bool node_cleaned = false;
 
     for (const auto & item : edge->outputs_) {
       TimeStamp new_mtime = disk_interface_->Stat(item->path(), err);
-      if (new_mtime == -1)
+      if (new_mtime == TimeStamp::max())
         return false;
       if (new_mtime > output_mtime)
         output_mtime = new_mtime;
@@ -1008,22 +1027,22 @@ bool Builder::FinishCommand(CommandRunner::Result* result, std::string* err) {
     }
 
     if (node_cleaned) {
-      TimeStamp restat_mtime = 0;
+      TimeStamp restat_mtime = TimeStamp::min();
       // If any output was cleaned, find the most recent mtime of any
       // (existing) non-order-only input or the depfile.
       for (std::vector<Node*>::iterator i = edge->inputs_.begin();
            i != edge->inputs_.end() - edge->order_only_deps_; ++i) {
         TimeStamp input_mtime = disk_interface_->Stat((*i)->path(), err);
-        if (input_mtime == -1)
+        if (input_mtime == TimeStamp::max())
           return false;
         if (input_mtime > restat_mtime)
           restat_mtime = input_mtime;
       }
 
-      std::string depfile = edge->GetUnescapedDepfile();
-      if (restat_mtime != 0 && deps_type.empty() && !depfile.empty()) {
+      std::filesystem::path const& depfile = edge->GetUnescapedDepfile();
+      if (restat_mtime != TimeStamp::min() && deps_type.empty() && !depfile.empty()) {
         TimeStamp depfile_mtime = disk_interface_->Stat(depfile, err);
-        if (depfile_mtime == -1)
+        if (depfile_mtime == TimeStamp::max())
           return false;
         if (depfile_mtime > restat_mtime)
           restat_mtime = depfile_mtime;
@@ -1041,7 +1060,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, std::string* err) {
     return false;
 
   // Delete any left over response file.
-  if(std::string const& rspfile = edge->GetUnescapedRspfile();
+  if(std::filesystem::path const& rspfile = edge->GetUnescapedRspfile();
      !rspfile.empty() && !g_keep_rsp)
   {
     disk_interface_->RemoveFile(rspfile);
@@ -1059,7 +1078,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, std::string* err) {
     assert(!edge->outputs_.empty() && "should have been rejected by parser");
     for(auto const& output : edge->outputs_) {
       TimeStamp deps_mtime = disk_interface_->Stat(output->path(), err);
-      if(deps_mtime == -1)
+      if (deps_mtime == TimeStamp::max())
       {
         return false;
       }
@@ -1090,10 +1109,10 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
       // all backslashes (as some of the slashes will certainly be backslashes
       // anyway). This could be fixed if necessary with some additional
       // complexity in IncludesNormalize::Relativize.
-      deps_nodes->push_back(state_->GetNode(item, ~0u));
+      deps_nodes->push_back(state_->GetNode(item));
     }
   } else if (deps_type == "gcc") {
-    std::string depfile = result->edge->GetUnescapedDepfile();
+    std::filesystem::path const& depfile = result->edge->GetUnescapedDepfile();
     if (depfile.empty()) {
       *err = std::string("edge with deps=gcc but no depfile makes no sense");
       return false;
@@ -1121,22 +1140,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     deps_nodes->reserve(deps.ins_.size());
     for (auto & item : deps.ins_)
     {
-      uint64_t slash_bits;
-
-      std::size_t size = item.size();
-      // What the hell?
-      // Who's bright idea was it to use const_cast?
-      if (!CanonicalizePath(const_cast<char*>(item.data()),
-                            &size,
-                            &slash_bits,
-                            err))
-      {
-        item = item.substr(0, size);
-        return false;
-      }
-      item = item.substr(0, size);
-
-      deps_nodes->push_back(state_->GetNode(item, slash_bits));
+      deps_nodes->push_back(state_->GetNode(item));
     }
 
     if (!g_keep_depfile)

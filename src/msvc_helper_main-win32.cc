@@ -67,7 +67,7 @@ void WriteDepFileOrDie(const char* object_path, const CLParser& parse) {
   }
   for (const auto & header : parse.includes_)
   {
-    if (fprintf(depfile, "%s\n", EscapeForDepfile(header).c_str()) < 0)
+    if (fprintf(depfile, "%s\n", EscapeForDepfile(header.generic_string()).c_str()) < 0)
     {
       unlink(object_path);
       fclose(depfile);

@@ -542,6 +542,7 @@ if platform.is_msvc():
     libs.append('ninja.lib')
 else:
     libs.append('-lninja')
+    libs.append('-lstdc++fs')
 
 if platform.is_aix() and not platform.is_os400_pase():
     libs.append('-lperfstat')
@@ -599,7 +600,6 @@ all_targets += ninja_test
 n.comment('Ancillary executables.')
 
 for name in ['build_log_perftest',
-             'canon_perftest',
              'depfile_parser_perftest',
              'hash_collision_bench',
              'manifest_parser_perftest',

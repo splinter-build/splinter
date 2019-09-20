@@ -77,14 +77,14 @@ struct DepsLog final {
 
   // Reading (startup-time) interface.
   struct Deps final {
-    Deps(int64_t mtime, int node_count)
+    Deps(TimeStamp mtime, int node_count)
         : mtime(mtime), node_count(node_count), nodes(new Node*[node_count]) {}
     ~Deps() { delete [] nodes; }
     TimeStamp mtime;
     int node_count;
     Node** nodes;
   };
-  LoadStatus Load(const std::string& path, State* state, std::string* err);
+  LoadStatus Load(std::filesystem::path const& path, State* state, std::string* err);
   Deps* GetDeps(Node* node);
 
   /// Rewrite the known log entries, throwing away old data.

@@ -186,7 +186,7 @@ struct Builder final {
   /// Clean up after interrupted commands by deleting output files.
   void Cleanup();
 
-  Node* AddTarget(const std::string& name, std::string* err);
+  Node* AddTarget(std::filesystem::path const& name, std::string* err);
 
   /// Add a target to the build, scanning dependencies.
   /// @return false on error.

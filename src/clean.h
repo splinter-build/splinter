@@ -76,15 +76,15 @@ struct Cleaner final {
  private:
   /// Remove the file @a path.
   /// @return whether the file has been removed.
-  int RemoveFile(const std::string& path);
+  int RemoveFile(std::filesystem::path const& path);
   /// @returns whether the file @a path exists.
-  bool FileExists(const std::string& path);
-  void Report(const std::string& path);
+  bool FileExists(std::filesystem::path const& path);
+  void Report(std::filesystem::path const& path);
 
   /// Remove the given @a path file only if it has not been already removed.
-  void Remove(const std::string& path);
+  void Remove(std::filesystem::path const& path);
   /// @return whether the given @a path has already been removed.
-  bool IsAlreadyRemoved(const std::string& path);
+  bool IsAlreadyRemoved(std::filesystem::path const& path);
   /// Remove the depfile and rspfile for an Edge.
   void RemoveEdgeFiles(Edge* edge);
 
@@ -101,7 +101,7 @@ struct Cleaner final {
   State* state_;
   const BuildConfig& config_;
   DyndepLoader dyndep_loader_;
-  std::set<std::string> removed_;
+  std::set<std::filesystem::path> removed_;
   std::set<Node*> cleaned_;
   int cleaned_files_count_ = 0;
   DiskInterface* disk_interface_;

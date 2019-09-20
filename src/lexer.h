@@ -16,6 +16,7 @@
 #define NINJA_LEXER_H_
 
 #include <string_view>
+#include <filesystem>
 
 // Windows may #define ERROR.
 #ifdef ERROR
@@ -58,7 +59,7 @@ struct Lexer final {
   std::string DescribeLastError();
 
   /// Start parsing some input.
-  void Start(std::string_view filename, std::string_view input);
+  void Start(std::filesystem::path filename, std::string_view input);
 
   /// Read a Token from the Token enum.
   Token ReadToken();
@@ -96,7 +97,7 @@ private:
   /// Read a $-escaped string.
   bool ReadEvalString(EvalString* eval, bool path, std::string* err);
 
-  std::string_view filename_;
+  std::filesystem::path filename_;
   std::string_view input_;
   const char* ofs_;
   const char* last_token_;
