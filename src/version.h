@@ -15,17 +15,18 @@
 #ifndef NINJA_VERSION_H_
 #define NINJA_VERSION_H_
 
-#include <string>
+#include <tuple>
+#include <string_view>
 
 /// The version number of the current Ninja release.  This will always
 /// be "git" on trunk.
-extern const char* kNinjaVersion;
+static constexpr auto kNinjaVersion = "1.9.0.git";
 
 /// Parse the major/minor components of a version string.
-void ParseVersion(const std::string& version, int* major, int* minor);
+std::tuple<size_t, size_t> ParseVersion(std::string_view version);
 
 /// Check whether \a version is compatible with the current Ninja version,
 /// aborting if not.
-void CheckNinjaVersion(const std::string& required_version);
+void CheckNinjaVersion(std::string_view required_version);
 
 #endif  // NINJA_VERSION_H_

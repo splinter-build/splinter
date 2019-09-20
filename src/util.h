@@ -24,6 +24,8 @@
 #include <string>
 #include <vector>
 
+#include <stdio.h>
+
 #ifdef _MSC_VER
 #define NORETURN __declspec(noreturn)
 #else
@@ -31,7 +33,41 @@
 #endif
 
 /// Log a fatal message and exit.
-NORETURN void Fatal(const char* msg, ...);
+template<typename ... ARGS_T>
+NORETURN void Fatal(const char* msg, ARGS_T && ... args)
+{
+  fprintf(stderr, "ninja: fatal: ");
+  fprintf(stderr, msg, std::forward<ARGS_T>(args)...);
+  fprintf(stderr, "\n");
+#ifdef _WIN32
+  // On Windows, some tools may inject extra threads.
+  // exit() may block on locks held by those threads, so forcibly exit.
+  fflush(stderr);
+  fflush(stdout);
+  ExitProcess(1);
+#else
+  exit(1);
+#endif
+}
+
+/// Log a warning message.
+template<typename ... ARGS_T>
+void Warning(const char* msg, ARGS_T && ... args)
+{
+  fprintf(stderr, "ninja: warning: ");
+  fprintf(stderr, msg, std::forward<ARGS_T>(args)...);
+  fprintf(stderr, "\n");
+}
+
+/// Log an error message.
+template<typename ... ARGS_T>
+void Error(const char* msg, ARGS_T && ... args)
+{
+  fprintf(stderr, "ninja: error: ");
+  fprintf(stderr, msg, std::forward<ARGS_T>(args)...);
+  fprintf(stderr, "\n");
+}
+
 
 // Have a generic fall-through for different versions of C/C++.
 #if defined(__cplusplus) && __cplusplus >= 201703L
@@ -46,12 +82,6 @@ NORETURN void Fatal(const char* msg, ...);
 #else // C++11 on gcc 6, and all other cases
 #define NINJA_FALLTHROUGH
 #endif
-
-/// Log a warning message.
-void Warning(const char* msg, ...);
-
-/// Log an error message.
-void Error(const char* msg, ...);
 
 /// Canonicalize a path like "foo/../bar.h" into just "bar.h".
 /// |slash_bits| has bits set starting from lowest for a backslash that was
@@ -98,7 +128,7 @@ double GetLoadAverage();
 
 /// Elide the given string @a str with '...' in the middle if the length
 /// exceeds @a width.
-std::string ElideMiddle(const std::string& str, size_t width);
+std::string ElideMiddle(std::string_view str, size_t width);
 
 /// Truncates a file to the given size.
 bool Truncate(const std::string& path, size_t size, std::string* err);

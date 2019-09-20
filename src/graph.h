@@ -35,8 +35,8 @@ struct State;
 /// Information about a node in the dependency graph: the file, whether
 /// it's dirty, mtime, etc.
 struct Node final {
-  Node(const std::string& path, uint64_t slash_bits)
-      : path_(path),
+  Node(std::string path, uint64_t slash_bits)
+      : path_(std::move(path)),
         slash_bits_(slash_bits),
         mtime_(-1),
         dirty_(false),

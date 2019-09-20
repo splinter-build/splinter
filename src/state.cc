@@ -14,14 +14,14 @@
 
 #include "state.h"
 
+#include "graph.h"
+#include "util.h"
+#include "metrics.h"
+#include "edit_distance.h"
+#include "string_concat.h"
+
 #include <assert.h>
 #include <stdio.h>
-
-#include "edit_distance.h"
-#include "graph.h"
-#include "metrics.h"
-#include "util.h"
-#include "string_concat.h"
 
 
 void Pool::EdgeScheduled(const Edge& edge) {
@@ -111,13 +111,14 @@ Node* State::GetNode(std::string_view path, uint64_t slash_bits) {
 
 Node* State::LookupNode(std::string_view path) const {
   METRIC_RECORD("lookup node");
-  Paths::const_iterator i = paths_.find(path);
-  if (i != paths_.end())
+  if(auto const& i = paths_.find(path); i != paths_.end())
+  {
     return i->second;
+  }
   return nullptr;
 }
 
-Node* State::SpellcheckNode(const std::string& path) {
+Node* State::SpellcheckNode(std::string_view path) {
   const bool kAllowReplacements = true;
   const int kMaxValidEditDistance = 3;
 
