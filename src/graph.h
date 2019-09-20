@@ -36,22 +36,17 @@ struct State;
 /// it's dirty, mtime, etc.
 struct Node final {
   Node(std::string path, uint64_t slash_bits)
-      : path_(std::move(path)),
-        slash_bits_(slash_bits),
-        mtime_(-1),
-        dirty_(false),
-        dyndep_pending_(false),
-        in_edge_(nullptr),
-        id_(-1) {}
+   : path_(std::move(path))
+   , slash_bits_(slash_bits)
+  { }
 
   /// Return false on error.
   bool Stat(DiskInterface* disk_interface, std::string* err);
 
   /// Return false on error.
-  bool StatIfNecessary(DiskInterface* disk_interface, std::string* err) {
-    if (status_known())
-      return true;
-    return Stat(disk_interface, err);
+  bool StatIfNecessary(DiskInterface* disk_interface, std::string* err)
+  {
+    return status_known() || Stat(disk_interface, err);
   }
 
   /// Mark as not-yet-stat()ed and not dirty.
@@ -115,15 +110,6 @@ private:
   ///   >0: actual file's mtime
   TimeStamp mtime_ = -1;  // TODO: Use std::numeric_limits.
 
-  /// Dirty is true when the underlying file is out-of-date.
-  /// But note that Edge::outputs_ready_ is also used in judging which
-  /// edges to build.
-  bool dirty_ = false;
-
-  /// Store whether dyndep information is expected from this node but
-  /// has not yet been loaded.
-  bool dyndep_pending_;
-
   /// The Edge that produces this Node, or nullptr when there is no
   /// known edge to produce it.
   Edge* in_edge_ = nullptr;
@@ -133,6 +119,15 @@ private:
 
   /// A dense integer id for the node, assigned and used by DepsLog.
   int id_ = -1; // TODO: Use std::numeric_limits.
+
+  /// Dirty is true when the underlying file is out-of-date.
+  /// But note that Edge::outputs_ready_ is also used in judging which
+  /// edges to build.
+  bool dirty_ = false;
+
+  /// Store whether dyndep information is expected from this node but
+  /// has not yet been loaded.
+  bool dyndep_pending_ = false;
 };
 
 /// An edge in the dependency graph; links between Nodes using Rules.
@@ -222,8 +217,11 @@ struct ImplicitDepLoader final {
   ImplicitDepLoader(State* state, DepsLog* deps_log,
                     DiskInterface* disk_interface,
                     DepfileParserOptions const* depfile_parser_options)
-      : state_(state), disk_interface_(disk_interface), deps_log_(deps_log),
-        depfile_parser_options_(depfile_parser_options) {}
+   : state_(state)
+   , disk_interface_(disk_interface)
+   , deps_log_(deps_log)
+   , depfile_parser_options_(depfile_parser_options)
+  { }
 
   /// Load implicit dependencies for \a edge.
   /// @return false on error (without filling \a err if info is just missing
@@ -265,10 +263,11 @@ struct DependencyScan final {
   DependencyScan(State* state, BuildLog* build_log, DepsLog* deps_log,
                  DiskInterface* disk_interface,
                  DepfileParserOptions const* depfile_parser_options)
-      : build_log_(build_log),
-        disk_interface_(disk_interface),
-        dep_loader_(state, deps_log, disk_interface, depfile_parser_options),
-        dyndep_loader_(state, disk_interface) {}
+    : build_log_(build_log)
+    , disk_interface_(disk_interface)
+    , dep_loader_(state, deps_log, disk_interface, depfile_parser_options)
+    , dyndep_loader_(state, disk_interface)
+  { }
 
   /// Update the |dirty_| state of the given node by inspecting its input edge.
   /// Examine inputs, outputs, and command lines to judge whether an edge
