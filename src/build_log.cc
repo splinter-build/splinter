@@ -112,13 +112,17 @@ uint64_t BuildLog::LogEntry::HashCommand(std::string_view command) {
   return MurmurHash64A(command.data(), command.size());
 }
 
-BuildLog::LogEntry::LogEntry(const std::string& output)
-  : output(output) {}
+BuildLog::LogEntry::LogEntry(std::string output)
+ : output(std::move(output))
+{ }
 
-BuildLog::LogEntry::LogEntry(const std::string& output, uint64_t command_hash,
-  int start_time, int end_time, TimeStamp restat_mtime)
-  : output(output), command_hash(command_hash),
-    start_time(start_time), end_time(end_time), mtime(restat_mtime)
+BuildLog::LogEntry::LogEntry(std::string output, uint64_t command_hash,
+                             int start_time, int end_time, TimeStamp restat_mtime)
+ : output(std::move(output))
+ , command_hash(command_hash)
+ , start_time(start_time)
+ , end_time(end_time)
+ , mtime(restat_mtime)
 {}
 
 BuildLog::~BuildLog() {
