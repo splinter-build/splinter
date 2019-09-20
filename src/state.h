@@ -17,8 +17,8 @@
 
 #include <map>
 #include <set>
-#include <string>
 #include <vector>
+#include <string_view>
 #include <unordered_map>
 
 #include "eval_env.h"
@@ -37,13 +37,13 @@ struct Rule;
 /// the total scheduled weight diminishes enough (i.e. when a scheduled edge
 /// completes).
 struct Pool final {
-  Pool(const std::string& name, int depth)
-    : name_(name), depth_(depth) {}
+  Pool(std::string name, int depth)
+    : name_(std::move(name)), depth_(depth) {}
 
   // A depth of 0 is infinite
   bool is_valid() const { return depth_ >= 0; }
   int depth() const { return depth_; }
-  const std::string& name() const { return name_; }
+  const std::string & name() const { return name_; }
   int current_use() const { return current_use_; }
 
   /// true if the Pool might delay this edge
@@ -95,7 +95,7 @@ struct State final {
 
   Node* GetNode(std::string_view path, uint64_t slash_bits);
   Node* LookupNode(std::string_view path) const;
-  Node* SpellcheckNode(const std::string& path);
+  Node* SpellcheckNode(std::string_view path);
 
   void AddIn(Edge* edge, std::string_view path, uint64_t slash_bits);
   bool AddOut(Edge* edge, std::string_view path, uint64_t slash_bits);

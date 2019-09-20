@@ -24,6 +24,7 @@
 
 #ifdef _WIN32
 #include <sstream>
+#define NOMINMAX
 #include <windows.h>
 #include <direct.h>  // _mkdir
 #else

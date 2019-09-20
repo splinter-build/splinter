@@ -14,6 +14,7 @@
 
 #include "msvc_helper.h"
 
+#define NOMINMAX
 #include <windows.h>
 
 #include "util.h"

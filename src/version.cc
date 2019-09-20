@@ -13,43 +13,65 @@
 // limitations under the License.
 
 #include "version.h"
-
-#include <stdlib.h>
-
 #include "util.h"
 
-using namespace std;
+#include <charconv>
+#include <stdexcept>
+//#include <system_error>
 
-const char* kNinjaVersion = "1.10.1.git";
+std::tuple<size_t, size_t> ParseVersion(std::string_view const version)
+{
+  size_t start = 0;
+  size_t end   = version.find('.');
 
-void ParseVersion(const std::string& version, int* major, int* minor) {
-  size_t end = version.find('.');
-  *major = atoi(version.substr(0, end).c_str());
-  *minor = 0;
-  if (end != std::string::npos) {
-    size_t start = end + 1;
-    end = version.find('.', start);
-    *minor = atoi(version.substr(start, end).c_str());
+  size_t major = 0;
+  size_t minor = 0;
+
+  if(auto res = std::from_chars(version.data() + start,
+                                version.data() + end,
+                                major);
+     res.ptr == version.data()+start)
+  {
+//    throw std::system_error(std::make_error_code(res.ec));
+    return {0, 0};
   }
+
+  if(std::string_view::npos != end)
+  {
+    start = end + 1;
+    end = version.find('.', start);
+
+    if(auto res = std::from_chars(version.data() + start,
+                                  version.data() + end,
+                                  minor);
+       res.ptr == version.data()+start)
+    {
+//      throw std::system_error(std::make_error_code(res.ec));
+      return {major, 0};
+    }
+  }
+
+  return {major, minor};
 }
 
-void CheckNinjaVersion(const std::string& version) {
-  int bin_major, bin_minor;
-  ParseVersion(kNinjaVersion, &bin_major, &bin_minor);
-  int file_major, file_minor;
-  ParseVersion(version, &file_major, &file_minor);
+void CheckNinjaVersion(std::string_view const version)
+{
+  auto const& [bin_major, bin_minor]   = ParseVersion(kNinjaVersion);
+  auto const& [file_major, file_minor] = ParseVersion(version);
 
-  if (bin_major > file_major) {
+  if(bin_major > file_major)
+  {
     Warning("ninja executable version (%s) greater than build file "
             "ninja_required_version (%s); versions may be incompatible.",
-            kNinjaVersion, version.c_str());
+            kNinjaVersion, std::string(version).c_str());
     return;
   }
 
-  if ((bin_major == file_major && bin_minor < file_minor) ||
-      bin_major < file_major) {
+  if(   (bin_major == file_major && bin_minor < file_minor)
+     || (bin_major < file_major))
+  {
     Fatal("ninja version (%s) incompatible with build file "
           "ninja_required_version version (%s).",
-          kNinjaVersion, version.c_str());
+          kNinjaVersion, std::string(version).c_str());
   }
 }

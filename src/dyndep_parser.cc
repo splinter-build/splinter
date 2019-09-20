@@ -84,8 +84,7 @@ bool DyndepParser::ParseDyndepVersion(std::string* err) {
     return lexer_.Error("expected 'ninja_dyndep_version = ...'", err);
   }
   std::string version = let_value.Evaluate(&env_);
-  int major, minor;
-  ParseVersion(version, &major, &minor);
+  auto const& [major, minor] = ParseVersion(version);
   if (major != 1 || minor != 0) {
     return lexer_.Error(
       string_concat("unsupported 'ninja_dyndep_version = ", version, "'"), err);

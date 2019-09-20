@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <io.h>
 #include <stdio.h>
+#define NOMINMAX
 #include <windows.h>
 
 #include "clparser.h"

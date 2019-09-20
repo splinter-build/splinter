@@ -14,9 +14,14 @@
 
 #include "line_printer.h"
 
+#include "util.h"
+
+#include <string_view>
+
 #include <stdio.h>
 #include <stdlib.h>
 #ifdef _WIN32
+#define NOMINMAX
 #include <windows.h>
 #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
 #define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x4
@@ -28,20 +33,19 @@
 #include <sys/time.h>
 #endif
 
-#include "util.h"
 
 using namespace std;
 
 LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   const char* term = getenv("TERM");
 #ifndef _WIN32
-  smart_terminal_ = isatty(1) && term && std::string(term) != "dumb";
+  smart_terminal_ = isatty(1) && term && std::string_view(term) != "dumb";
 #else
   // Disable output buffer.  It'd be nice to use line buffering but
   // MSDN says: "For some systems, [_IOLBF] provides line
   // buffering. However, for Win32, the behavior is the same as _IOFBF
   // - Full Buffering."
-  if (term && std::string(term) == "dumb") {
+  if (term && std::string_view(term) == "dumb") {
     smart_terminal_ = false;
   } else {
     setvbuf(stdout, nullptr, _IONBF, 0);
@@ -53,7 +57,7 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   supports_color_ = smart_terminal_;
   if (!supports_color_) {
     const char* clicolor_force = getenv("CLICOLOR_FORCE");
-    supports_color_ = clicolor_force && std::string(clicolor_force) != "0";
+    supports_color_ = clicolor_force && std::string_view(clicolor_force) != "0";
   }
 #ifdef _WIN32
   // Try enabling ANSI escape sequence support on Windows 10 terminals.
@@ -68,9 +72,9 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
 #endif
 }
 
-void LinePrinter::Print(std::string to_print, LineType type) {
+void LinePrinter::Print(std::string_view to_print_view, LineType type) {
   if (console_locked_) {
-    line_buffer_ = to_print;
+    line_buffer_ = to_print_view;
     line_type_ = type;
     return;
   }
@@ -86,7 +90,7 @@ void LinePrinter::Print(std::string to_print, LineType type) {
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     GetConsoleScreenBufferInfo(console_, &csbi);
 
-    to_print = ElideMiddle(to_print, static_cast<size_t>(csbi.dwSize.X));
+    std::string to_print = ElideMiddle(to_print_view, static_cast<size_t>(csbi.dwSize.X));
     // We don't want to have the cursor spamming back and forth, so instead of
     // printf use WriteConsoleOutput which updates the contents of the buffer,
     // but doesn't move the cursor position.
@@ -108,16 +112,20 @@ void LinePrinter::Print(std::string to_print, LineType type) {
     // line-wrapping.
     winsize size;
     if ((ioctl(STDOUT_FILENO, TIOCGWINSZ, &size) == 0) && size.ws_col) {
-      to_print = ElideMiddle(to_print, size.ws_col);
+      std::string to_print = ElideMiddle(to_print_view, size.ws_col);
+      printf("%s", to_print.c_str());
     }
-    printf("%s", to_print.c_str());
+    else
+    {
+      printf("%s", std::string(to_print_view).c_str());
+    }
     printf("\x1B[K");  // Clear to end of line.
     fflush(stdout);
 #endif
 
     have_blank_line_ = false;
   } else {
-    printf("%s\n", to_print.c_str());
+    printf("%s\n", std::string(to_print_view).c_str());
   }
 }
 
@@ -131,7 +139,7 @@ void LinePrinter::PrintOrBuffer(const char* data, size_t size) {
   }
 }
 
-void LinePrinter::PrintOnNewLine(const std::string& to_print) {
+void LinePrinter::PrintOnNewLine(std::string_view to_print) {
   if (console_locked_ && !line_buffer_.empty()) {
     output_buffer_.append(line_buffer_);
     output_buffer_.append(1, '\n');
