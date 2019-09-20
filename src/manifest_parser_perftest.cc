@@ -41,8 +41,8 @@
 bool WriteFakeManifests(const std::string& dir, std::string* err) {
   RealDiskInterface disk_interface;
   TimeStamp mtime = disk_interface.Stat(dir + "/build.ninja", err);
-  if (mtime != 0)  // 0 means that the file doesn't exist yet.
-    return mtime != -1;
+  if (mtime != TimeStamp::min())  // TimeStamp::min() means that the file doesn't exist yet.
+    return mtime != TimeStamp::max();
 
   std::string command = "python misc/write_fake_manifests.py " + dir;
   printf("Creating manifest data..."); fflush(stdout);
@@ -99,8 +99,12 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  if (chdir(kManifestDir) < 0)
+  std::error_code ec;
+  std::filesystem::current_path(kManifestDir, ec);
+  if(ec)
+  {
     Fatal("chdir: %s", strerror(errno));
+  }
 
   const int kNumRepetitions = 5;
   std::vector<int> times;

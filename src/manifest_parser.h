@@ -49,8 +49,7 @@ struct ManifestParser final : public Parser {
 
 private:
   /// Parse a file, given its contents as a std::string.
-  bool Parse(const std::string& filename, const std::string& input,
-             std::string* err);
+  bool Parse(std::filesystem::path const& filename, const std::string& input, std::string* err) override final;
 
   /// Parse various statement types.
   bool ParsePool(std::string* err);

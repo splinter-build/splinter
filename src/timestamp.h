@@ -15,19 +15,11 @@
 #ifndef NINJA_TIMESTAMP_H_
 #define NINJA_TIMESTAMP_H_
 
-#ifdef _WIN32
-#include "win32port.h"
-#else
-#ifndef __STDC_FORMAT_MACROS
-#define __STDC_FORMAT_MACROS
-#endif
-#include <inttypes.h>
-#endif
+#include <filesystem>
 
 // When considering file modification times we only care to compare
 // them against one another -- we never convert them to an absolute
-// real time.  On POSIX we use timespec (seconds&nanoseconds since epoch)
-// and on Windows we use a different value.  Both fit in an int64.
-typedef int64_t TimeStamp;
+// real time.
+using TimeStamp = std::filesystem::file_time_type;
 
 #endif  // NINJA_TIMESTAMP_H_

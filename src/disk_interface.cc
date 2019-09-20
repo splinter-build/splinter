@@ -14,271 +14,173 @@
 
 #include "disk_interface.h"
 
+#include "util.h"
+#include "metrics.h"
+
 #include <algorithm>
 
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-
-#ifdef _WIN32
-#include <sstream>
-#define NOMINMAX
-#include <windows.h>
-#include <direct.h>  // _mkdir
-#endif
-
-#include "metrics.h"
-#include "util.h"
-#include "string_concat.h"
-
-namespace {
-
-std::string DirName(const std::string& path) {
-#ifdef _WIN32
-  static const char kPathSeparators[] = "\\/";
-#else
-  static const char kPathSeparators[] = "/";
-#endif
-  static const char* const kEnd = kPathSeparators + sizeof(kPathSeparators) - 1;
-
-  std::string::size_type slash_pos = path.find_last_of(kPathSeparators);
-  if (slash_pos == std::string::npos)
-    return std::string();  // Nothing to do.
-  while (slash_pos > 0 &&
-         std::find(kPathSeparators, kEnd, path[slash_pos - 1]) != kEnd)
-    --slash_pos;
-  return path.substr(0, slash_pos);
-}
-
-int MakeDir(const std::string& path) {
-#ifdef _WIN32
-  return _mkdir(path.c_str());
-#else
-  return mkdir(path.c_str(), 0777);
-#endif
-}
-
-#ifdef _WIN32
-TimeStamp TimeStampFromFileTime(const FILETIME& filetime) {
-  // FILETIME is in 100-nanosecond increments since the Windows epoch.
-  // We don't much care about epoch correctness but we do want the
-  // resulting value to fit in a 64-bit integer.
-  uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
-    ((uint64_t)filetime.dwLowDateTime);
-  // 1600 epoch -> 2000 epoch (subtract 400 years).
-  return (TimeStamp)mtime - 12622770400LL * (1000000000LL / 100);
-}
-
-TimeStamp StatSingleFile(const std::string& path, std::string* err) {
-  WIN32_FILE_ATTRIBUTE_DATA attrs;
-  if (!GetFileAttributesExA(path.c_str(), GetFileExInfoStandard, &attrs)) {
-    DWORD win_err = GetLastError();
-    if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
-      return 0;
-    *err = string_concat("GetFileAttributesEx(", path, "): ", GetLastErrorString());
-    return -1;
-  }
-  return TimeStampFromFileTime(attrs.ftLastWriteTime);
-}
-
-bool IsWindows7OrLater() {
-  OSVERSIONINFOEX version_info =
-      { sizeof(OSVERSIONINFOEX), 6, 1, 0, 0, {0}, 0, 0, 0, 0, 0};
-  DWORDLONG comparison = 0;
-  VER_SET_CONDITION(comparison, VER_MAJORVERSION, VER_GREATER_EQUAL);
-  VER_SET_CONDITION(comparison, VER_MINORVERSION, VER_GREATER_EQUAL);
-  return VerifyVersionInfo(
-      &version_info, VER_MAJORVERSION | VER_MINORVERSION, comparison);
-}
-
-bool StatAllFilesInDir(const std::string& dir, std::map<std::string, TimeStamp, std::less<>>* stamps,
-                       std::string* err) {
-  // FindExInfoBasic is 30% faster than FindExInfoStandard.
-  static bool can_use_basic_info = IsWindows7OrLater();
-  // This is not in earlier SDKs.
-  const FINDEX_INFO_LEVELS kFindExInfoBasic =
-      static_cast<FINDEX_INFO_LEVELS>(1);
-  FINDEX_INFO_LEVELS level =
-      can_use_basic_info ? kFindExInfoBasic : FindExInfoStandard;
-  WIN32_FIND_DATAA ffd;
-  HANDLE find_handle = FindFirstFileExA((dir + "\\*").c_str(), level, &ffd,
-                                        FindExSearchNameMatch, nullptr, 0);
-
-  if (find_handle == INVALID_HANDLE_VALUE) {
-    DWORD win_err = GetLastError();
-    if (win_err == ERROR_FILE_NOT_FOUND || win_err == ERROR_PATH_NOT_FOUND)
-      return true;
-    *err = string_concat("FindFirstFileExA(", dir, "): ", GetLastErrorString());
-    return false;
-  }
-  do {
-    if (ffd.cFileName[0] == '.' && ffd.cFileName[1] == '.') {
-      // Seems to just copy the timestamp for ".." from ".", which is wrong.
-      // This is the case at least on NTFS under Windows 7.
-      continue;
-    }
-    std::string lowername = ffd.cFileName;
-    std::transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
-    stamps->emplace(std::move(lowername), TimeStampFromFileTime(ffd.ftLastWriteTime));
-  } while (FindNextFileA(find_handle, &ffd));
-  FindClose(find_handle);
-  return true;
-}
-#endif  // _WIN32
-
-}  // namespace
+#include <cstring>
+#include <cassert>
 
 // DiskInterface ---------------------------------------------------------------
 
-bool DiskInterface::MakeDirs(const std::string& path) {
-  std::string dir = DirName(path);
-  if (dir.empty())
-    return true;  // Reached root; assume it's there.
-  std::string err;
-  TimeStamp mtime = Stat(dir, &err);
-  if (mtime < 0) {
-    Error("%s", err.c_str());
-    return false;
-  }
-  if (mtime > 0)
-    return true;  // Exists already; we're done.
-
-  // Directory doesn't exist.  Try creating its parent first.
-  bool success = MakeDirs(dir);
-  if (!success)
-    return false;
-  return MakeDir(dir);
+bool RealDiskInterface::MakeDirs(std::filesystem::path const& path)
+{
+  std::error_code ec;
+  bool const success = std::filesystem::create_directories(path, ec);
+  return success && ! ec;
 }
 
 // RealDiskInterface -----------------------------------------------------------
 
-TimeStamp RealDiskInterface::Stat(const std::string& path, std::string* err) const {
+TimeStamp RealDiskInterface::Stat(std::filesystem::path const& path, std::string* err) const
+{
   METRIC_RECORD("node stat");
-#ifdef _WIN32
-  // MSDN: "Naming Files, Paths, and Namespaces"
-  // http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
-  if (!path.empty() && path[0] != '\\' && path.size() > MAX_PATH) {
-    std::ostringstream err_stream;
-    err_stream << "Stat(" << path << "): Filename longer than " << MAX_PATH
-               << " characters";
-    *err = err_stream.str();
-    return -1;
-  }
-  if (!use_cache_)
-    return StatSingleFile(path, err);
 
-  std::string dir = DirName(path);
-  std::string base(path.substr(dir.size() ? dir.size() + 1 : 0));
-  if (base == "..") {
-    // StatAllFilesInDir does not report any information for base = "..".
-    base = ".";
-    dir = path;
-  }
-
-  std::transform(dir.begin(), dir.end(), dir.begin(), ::tolower);
-  std::transform(base.begin(), base.end(), base.begin(), ::tolower);
-
-  Cache::iterator ci = cache_.find(dir);
-  if (ci == cache_.end()) {
-    ci = cache_.emplace(dir, DirCache()).first;
-    if (!StatAllFilesInDir(dir.empty() ? "." : dir, &ci->second, err)) {
-      cache_.erase(ci);
-      return -1;
+  if( ! use_cache_)
+  {
+    std::error_code ec;
+    auto time = std::filesystem::last_write_time(path, ec);
+    if(ec)
+    {
+      if(   (ec == std::make_error_code(std::errc::no_such_file_or_directory))
+         || (ec == std::make_error_code(std::errc::not_a_directory)))
+      {
+        return TimeStamp::min();
+      }
+      else
+      {
+        *err = ec.message();
+        return TimeStamp::max();
+      }
+    }
+    else
+    {
+      return time;
     }
   }
-  DirCache::iterator di = ci->second.find(base);
-  return di != ci->second.end() ? di->second : 0;
-#else
-  struct stat st;
-  if (stat(path.c_str(), &st) < 0) {
-    if (errno == ENOENT || errno == ENOTDIR)
-      return 0;
-    *err = string_concat("stat(", path, "): ", strerror(errno));
-    return -1;
+
+  std::filesystem::path const& directory = path.parent_path();
+  std::string dir = directory.generic_string();
+
+#ifdef _WIN32
+  std::transform(dir.begin(), dir.end(), dir.begin(), ::tolower);
+#endif
+
+  Cache::iterator ci = cache_.find(dir);
+  if(ci == cache_.end())
+  {
+    auto const& [it, success2] = cache_.emplace(std::move(dir), DirCache{});
+    assert(success2);
+    ci = it;
+    for(auto const& entry : std::filesystem::directory_iterator(directory))
+    {
+      std::string lowername = entry.path().filename().string();
+#ifdef _WIN32
+      std::transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
+#endif
+      std::error_code ec;
+      auto const& [it2, success] = ci->second.emplace(std::move(lowername), entry.last_write_time(ec));
+      if( ! success || ec)
+      {
+          *err = ec.message();
+          cache_.erase(ci);
+          // TODO: If we're going to abort, shouldn't we also remove all of the previously inserted entries?
+          return TimeStamp::max();
+      }
+    }
   }
-  // Some users (Flatpak) set mtime to 0, this should be harmless
-  // and avoids conflicting with our return value of 0 meaning
-  // that it doesn't exist.
-  if (st.st_mtime == 0)
-    return 1;
-#if defined(_AIX)
-  return (int64_t)st.st_mtime * 1000000000LL + st.st_mtime_n;
-#elif defined(__APPLE__)
-  return ((int64_t)st.st_mtimespec.tv_sec * 1000000000LL +
-          st.st_mtimespec.tv_nsec);
-#elif defined(st_mtime) // A macro, so we're likely on modern POSIX.
-  return (int64_t)st.st_mtim.tv_sec * 1000000000LL + st.st_mtim.tv_nsec;
-#else
-  return (int64_t)st.st_mtime * 1000000000LL + st.st_mtimensec;
-#endif
-#endif
+
+  DirCache const& cache = ci->second;
+  DirCache::const_iterator di = cache.find(path.filename());
+  return di != cache.end() ? di->second : TimeStamp::min();
 }
 
-bool RealDiskInterface::WriteFile(const std::string& path, const std::string& contents) {
-  FILE* fp = fopen(path.c_str(), "w");
-  if (fp == nullptr) {
+bool RealDiskInterface::WriteFile(std::filesystem::path const& path, std::string_view const contents)
+{
+  FILE* fp = fopen(path.generic_string().c_str(), "w");
+  if(fp == nullptr)
+  {
     Error("WriteFile(%s): Unable to create file. %s",
-          path.c_str(), strerror(errno));
+          path.generic_string().c_str(), strerror(errno));
     return false;
   }
 
-  if (fwrite(contents.data(), 1, contents.length(), fp) < contents.length())  {
+  if(fwrite(contents.data(), 1, contents.length(), fp) < contents.length())
+  {
     Error("WriteFile(%s): Unable to write to the file. %s",
-          path.c_str(), strerror(errno));
+          path.generic_string().c_str(), strerror(errno));
     fclose(fp);
     return false;
   }
 
-  if (fclose(fp) == EOF) {
+  if(fclose(fp) == EOF)
+  {
     Error("WriteFile(%s): Unable to close the file. %s",
-          path.c_str(), strerror(errno));
+          path.generic_string().c_str(), strerror(errno));
     return false;
   }
 
   return true;
 }
 
-bool RealDiskInterface::MakeDir(const std::string& path) {
-  if (::MakeDir(path) < 0) {
-    if (errno == EEXIST) {
+bool RealDiskInterface::MakeDir(std::filesystem::path const& path)
+{
+  std::error_code ec;
+  bool const success = std::filesystem::create_directory(path, ec);
+  if( ! success || ec)
+  {
+    if(ec == std::make_error_code(std::errc::file_exists))
+    {
       return true;
     }
-    Error("mkdir(%s): %s", path.c_str(), strerror(errno));
-    return false;
+    else
+    {
+      Error("mkdir(%s): %s", path.generic_string().c_str(), ec.message().c_str());
+      return false;
+    }
   }
   return true;
 }
 
-FileReader::Status RealDiskInterface::ReadFile(const std::string& path,
+FileReader::Status RealDiskInterface::ReadFile(std::filesystem::path const& path,
                                                std::string* contents,
-                                               std::string* err) {
-  switch (::ReadFile(path, contents, err)) {
-  case 0:       return Okay;
-  case -ENOENT: return NotFound;
-  default:      return OtherError;
+                                               std::string* err)
+{
+  // Need to call the version of this from util.cc
+  // Bad naming that there's an overlap.
+  switch(::ReadFile(path, contents, err))
+  {
+    case 0:       return Okay;
+    case -ENOENT: return NotFound;
+    default:      return OtherError;
   }
 }
 
-int RealDiskInterface::RemoveFile(const std::string& path) {
-  if (remove(path.c_str()) < 0) {
-    switch (errno) {
-      case ENOENT:
-        return 1;
-      default:
-        Error("remove(%s): %s", path.c_str(), strerror(errno));
+int RealDiskInterface::RemoveFile(std::filesystem::path const& path)
+{
+  std::error_code ec;
+  bool const success = std::filesystem::remove(path, ec);
+  if( ! success)
+  {
+    if(ec)
+    {
+        Error("remove(%s): %s", path.generic_string().c_str(), ec.message().c_str());
         return -1;
     }
-  } else {
-    return 0;
+    else
+    {
+        return 1;
+    }
   }
+  return 0;
 }
 
-void RealDiskInterface::AllowStatCache(bool allow) {
-#ifdef _WIN32
+void RealDiskInterface::AllowStatCache(bool allow)
+{
   use_cache_ = allow;
-  if (!use_cache_)
+  if( ! use_cache_)
+  {
     cache_.clear();
-#endif
+  }
 }

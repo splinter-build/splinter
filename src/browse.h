@@ -15,6 +15,8 @@
 #ifndef NINJA_BROWSE_H_
 #define NINJA_BROWSE_H_
 
+#include <filesystem>
+
 struct State;
 
 /// Run in "browse" mode, which execs a Python webserver.
@@ -23,6 +25,6 @@ struct State;
 /// \a argv are arguments to be passed to the Python script.
 /// This function does not return if it runs successfully.
 void RunBrowsePython(State* state, const char* ninja_command,
-                     const char* input_file, int argc, char* argv[]);
+                     std::filesystem::path const& input_file, int argc, char* argv[]);
 
 #endif  // NINJA_BROWSE_H_

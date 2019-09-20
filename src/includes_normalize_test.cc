@@ -25,13 +25,6 @@
 
 namespace {
 
-std::string GetCurDir() {
-  char buf[_MAX_PATH];
-  _getcwd(buf, sizeof(buf));
-  std::vector<std::string_view> parts = SplitStringPiece(buf, '\\');
-  return std::string(parts[parts.size() - 1]);
-}
-
 std::string NormalizeAndCheckNoError(const std::string& input) {
   std::string result, err;
   IncludesNormalize normalizer(".");
@@ -41,7 +34,7 @@ std::string NormalizeAndCheckNoError(const std::string& input) {
 }
 
 std::string NormalizeRelativeAndCheckNoError(const std::string& input,
-                                        const std::string& relative_to) {
+                                             const std::string& relative_to) {
   std::string result, err;
   IncludesNormalize normalizer(relative_to);
   EXPECT_TRUE(normalizer.Normalize(input, &result, &err));
@@ -60,14 +53,14 @@ TEST(IncludesNormalize, Simple) {
 
 TEST(IncludesNormalize, WithRelative) {
   std::string err;
-  std::string currentdir = GetCurDir();
+  std::filesystem::path currentdir = std::filesystem::current_path();
   EXPECT_EQ("c", NormalizeRelativeAndCheckNoError("a/b/c", "a/b"));
   EXPECT_EQ("a",
             NormalizeAndCheckNoError(IncludesNormalize::AbsPath("a", &err)));
   EXPECT_EQ("", err);
-  EXPECT_EQ(string_concat("../", currentdir, "/a"),
+  EXPECT_EQ(string_concat("../", currentdir.generic_string(), "/a"),
             NormalizeRelativeAndCheckNoError("a", "../b"));
-  EXPECT_EQ(string_concat("../", currentdir, "/a/b"),
+  EXPECT_EQ(string_concat("../", currentdir.generic_string(), "/a/b"),
             NormalizeRelativeAndCheckNoError("a/b", "../c"));
   EXPECT_EQ("../../a", NormalizeRelativeAndCheckNoError("a", "b/c"));
   EXPECT_EQ(".", NormalizeRelativeAndCheckNoError("a", "a"));
@@ -111,36 +104,6 @@ TEST(IncludesNormalize, LongInvalidPath) {
   EXPECT_FALSE(
       normalizer.Normalize(kLongInputString, &result, &err));
   EXPECT_EQ("path too long", err);
-
-
-  // Construct max size path having cwd prefix.
-  // kExactlyMaxPath = "$cwd\\a\\aaaa...aaaa\0";
-  char kExactlyMaxPath[_MAX_PATH + 1];
-  ASSERT_NE(_getcwd(kExactlyMaxPath, sizeof kExactlyMaxPath), nullptr);
-
-  int cwd_len = strlen(kExactlyMaxPath);
-  ASSERT_LE(cwd_len + 3 + 1, _MAX_PATH)
-  kExactlyMaxPath[cwd_len] = '\\';
-  kExactlyMaxPath[cwd_len + 1] = 'a';
-  kExactlyMaxPath[cwd_len + 2] = '\\';
-
-  kExactlyMaxPath[cwd_len + 3] = 'a';
-
-  for (int i = cwd_len + 4; i < _MAX_PATH; ++i) {
-    if (i > cwd_len + 4 && i < _MAX_PATH - 1 && i % 10 == 0)
-      kExactlyMaxPath[i] = '\\';
-    else
-      kExactlyMaxPath[i] = 'a';
-  }
-
-  kExactlyMaxPath[_MAX_PATH] = '\0';
-  EXPECT_EQ(strlen(kExactlyMaxPath), _MAX_PATH);
-
-  std::string forward_slashes(kExactlyMaxPath);
-  replace(forward_slashes.begin(), forward_slashes.end(), '\\', '/');
-  // Make sure a path that's exactly _MAX_PATH long is canonicalized.
-  EXPECT_EQ(forward_slashes.substr(cwd_len + 1),
-            NormalizeAndCheckNoError(kExactlyMaxPath));
 }
 
 TEST(IncludesNormalize, ShortRelativeButTooLongAbsolutePath) {

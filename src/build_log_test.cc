@@ -35,12 +35,14 @@ const char kTestFilename[] = "BuildLogTest-tempfile";
 struct BuildLogTest : public StateTestWithBuiltinRules, public BuildLogUser {
   void SetUp() override final {
     // In case a crashing test left a stale file behind.
-    unlink(kTestFilename);
+    std::error_code ec;
+    std::filesystem::remove(kTestFilename, ec); // ignore return and ec;
   }
   void TearDown() override final {
-    unlink(kTestFilename);
+    std::error_code ec;
+    std::filesystem::remove(kTestFilename, ec); // ignore return and ec;
   }
-  bool IsPathDead(std::string_view s) const override { return false; }
+  bool IsPathDead(std::filesystem::path const& p) const override { return false; }
 };
 
 TEST_F(BuildLogTest, WriteRead) {
@@ -183,7 +185,7 @@ TEST_F(BuildLogTest, SpacesInOutputV4) {
   ASSERT_TRUE(e);
   ASSERT_EQ(123, e->start_time);
   ASSERT_EQ(456, e->end_time);
-  ASSERT_EQ(456, e->mtime);
+  ASSERT_EQ(TimeStamp(TimeStamp::duration(456)), e->mtime);
   ASSERT_NO_FATAL_FAILURE(AssertHash("command", e->command_hash));
 }
 
@@ -207,36 +209,51 @@ TEST_F(BuildLogTest, DuplicateVersionHeader) {
   ASSERT_TRUE(e);
   ASSERT_EQ(123, e->start_time);
   ASSERT_EQ(456, e->end_time);
-  ASSERT_EQ(456, e->mtime);
+  ASSERT_EQ(TimeStamp(TimeStamp::duration(456)), e->mtime);
   ASSERT_NO_FATAL_FAILURE(AssertHash("command", e->command_hash));
 
   e = log.LookupByOutput("out2");
   ASSERT_TRUE(e);
   ASSERT_EQ(456, e->start_time);
   ASSERT_EQ(789, e->end_time);
-  ASSERT_EQ(789, e->mtime);
+  ASSERT_EQ(TimeStamp(TimeStamp::duration(789)), e->mtime);
   ASSERT_NO_FATAL_FAILURE(AssertHash("command2", e->command_hash));
 }
 
-struct TestDiskInterface : public DiskInterface {
-  virtual TimeStamp Stat(const std::string& path, std::string* err) const {
-    return 4;
+struct TestDiskInterface final : public DiskInterface {
+  TimeStamp Stat(std::filesystem::path const&, std::string*) const override final
+  {
+    return TimeStamp(TimeStamp::duration(4));
   }
-  virtual bool WriteFile(const std::string& path, const std::string& contents) {
+
+  bool WriteFile(std::filesystem::path const&, std::string_view) override final
+  {
     assert(false);
     return true;
   }
-  virtual bool MakeDir(const std::string& path) {
+
+  bool MakeDir(std::filesystem::path const&) override final
+  {
     assert(false);
     return false;
   }
-  virtual Status ReadFile(const std::string& path, std::string* contents, std::string* err) {
+
+  Status ReadFile(std::filesystem::path const&, std::string*, std::string*) override final
+  {
     assert(false);
     return NotFound;
   }
-  virtual int RemoveFile(const std::string& path) {
+
+  int RemoveFile(std::filesystem::path const&) override final
+  {
     assert(false);
     return 0;
+  }
+
+  bool MakeDirs(std::filesystem::path const&) override final
+  {
+      assert(false);
+      return false;
   }
 };
 
@@ -250,7 +267,7 @@ TEST_F(BuildLogTest, Restat) {
   EXPECT_TRUE(log.Load(kTestFilename, &err));
   ASSERT_EQ("", err);
   BuildLog::LogEntry* e = log.LookupByOutput("out");
-  ASSERT_EQ(3, e->mtime);
+  ASSERT_EQ(TimeStamp(TimeStamp::duration(3)), e->mtime);
 
   TestDiskInterface testDiskInterface;
   char out2[] = { 'o', 'u', 't', '2', 0 };
@@ -258,12 +275,12 @@ TEST_F(BuildLogTest, Restat) {
   EXPECT_TRUE(log.Restat(kTestFilename, testDiskInterface, 1, filter2, &err));
   ASSERT_EQ("", err);
   e = log.LookupByOutput("out");
-  ASSERT_EQ(3, e->mtime); // unchanged, since the filter doesn't match
+  ASSERT_EQ(TimeStamp(TimeStamp::duration(3)), e->mtime); // unchanged, since the filter doesn't match
 
   EXPECT_TRUE(log.Restat(kTestFilename, testDiskInterface, 0, nullptr, &err));
   ASSERT_EQ("", err);
   e = log.LookupByOutput("out");
-  ASSERT_EQ(4, e->mtime);
+  ASSERT_EQ(TimeStamp(TimeStamp::duration(4)), e->mtime);
 }
 
 TEST_F(BuildLogTest, VeryLongInputLine) {
@@ -290,7 +307,7 @@ TEST_F(BuildLogTest, VeryLongInputLine) {
   ASSERT_TRUE(e);
   ASSERT_EQ(456, e->start_time);
   ASSERT_EQ(789, e->end_time);
-  ASSERT_EQ(789, e->mtime);
+  ASSERT_EQ(TimeStamp(TimeStamp::duration(789)), e->mtime);
   ASSERT_NO_FATAL_FAILURE(AssertHash("command2", e->command_hash));
 }
 
@@ -315,7 +332,7 @@ TEST_F(BuildLogTest, MultiTargetEdge) {
 }
 
 struct BuildLogRecompactTest : public BuildLogTest {
-  bool IsPathDead(std::string_view s) const override final { return s == "out2"; }
+  bool IsPathDead(std::filesystem::path const& p) const override final { return p == "out2"; }
 };
 
 TEST_F(BuildLogRecompactTest, Recompact) {

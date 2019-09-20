@@ -466,9 +466,11 @@ TEST_F(PlanTest, PoolWithFailingEdge) {
 }
 
 /// Fake implementation of CommandRunner, useful for tests.
-struct FakeCommandRunner final : public CommandRunner {
-  explicit FakeCommandRunner(VirtualFileSystem* fs) :
-      max_active_edges_(1), fs_(fs) {}
+struct FakeCommandRunner final : public CommandRunner
+{
+  explicit FakeCommandRunner(VirtualFileSystem* fs)
+   : max_active_edges_(1), fs_(fs)
+  { }
 
   // CommandRunner impl
   bool CanRunMore() const override final;
@@ -484,46 +486,66 @@ struct FakeCommandRunner final : public CommandRunner {
 };
 
 struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
-  BuildTest() : config_(MakeConfig()),
-                builder_(&state_, config_, nullptr, nullptr, &fs_),
-                status_(config_) {
-  }
+  BuildTest()
+   : config_(MakeConfig())
+   , builder_(&state_, config_, nullptr, nullptr, &fs_)
+   , status_(config_)
+  { }
 
-  BuildTest(DepsLog* log) : config_(MakeConfig()), command_runner_(&fs_),
-                            builder_(&state_, config_, nullptr, log, &fs_),
-                            status_(config_) {
-  }
+  BuildTest(DepsLog* log)
+   : config_(MakeConfig())
+   , command_runner_(&fs_)
+   , builder_(&state_, config_, nullptr, log, &fs_)
+   , status_(config_)
+  { }
 
-  void SetUp() override {
+  void SetUp() override
+  {
     StateTestWithBuiltinRules::SetUp();
 
     builder_.command_runner_.reset(&command_runner_);
+
     AssertParse(&state_,
-"build cat1: cat in1\n"
-"build cat2: cat in1 in2\n"
-"build cat12: cat cat1 cat2\n");
+                "build cat1: cat in1\n"
+                "build cat2: cat in1 in2\n"
+                "build cat12: cat cat1 cat2\n");
 
     fs_.Create("in1", "");
     fs_.Create("in2", "");
   }
 
-  ~BuildTest() {
+  ~BuildTest() override
+  {
     builder_.command_runner_.release();
   }
 
-  bool IsPathDead(std::string_view s) const override final { return false; }
+  bool IsPathDead(std::filesystem::path const&) const override final { return false; }
 
   /// Rebuild target in the 'working tree' (fs_).
   /// State of command_runner_ and logs contents (if specified) ARE MODIFIED.
   /// Handy to check for NOOP builds, and higher-level rebuild tests.
-  void RebuildTarget(const std::string& target, const char* manifest,
-                     const char* log_path = nullptr, const char* deps_path = nullptr,
-                     State* state = nullptr);
+  void RebuildTarget(const std::string& target,
+                     const char*        manifest,
+                     const char*        log_path  = nullptr,
+                     const char*        deps_path = nullptr,
+                     State*             state     = nullptr);
 
   // Mark a path dirty.
-  void Dirty(const std::string& path);
+  void Dirty(std::filesystem::path const& path)
+  {
+    Node* node = GetNode(path);
+    node->MarkDirty();
 
-  BuildConfig MakeConfig() {
+    // If it's an input file, mark that we've already stat()ed it and
+    // it's missing.
+    if( ! node->in_edge())
+    {
+      node->MarkMissing();
+    }
+  }
+
+  BuildConfig MakeConfig()
+  {
     BuildConfig config;
     config.verbosity = BuildConfig::QUIET;
     return config;
@@ -537,26 +559,35 @@ struct BuildTest : public StateTestWithBuiltinRules, public BuildLogUser {
   BuildStatus status_;
 };
 
-void BuildTest::RebuildTarget(const std::string& target, const char* manifest,
-                              const char* log_path, const char* deps_path,
-                              State* state) {
+void BuildTest::RebuildTarget(const std::string& target,
+                              const char*        manifest,
+                              const char*        log_path,
+                              const char*        deps_path,
+                              State*             state)
+{
   State local_state, *pstate = &local_state;
-  if (state)
+  if(state)
+  {
     pstate = state;
+  }
   ASSERT_NO_FATAL_FAILURE(AddCatRule(pstate));
   AssertParse(pstate, manifest);
 
   std::string err;
-  BuildLog build_log, *pbuild_log = nullptr;
-  if (log_path) {
+  BuildLog build_log;
+  BuildLog *pbuild_log = nullptr;
+  if(log_path)
+  {
     ASSERT_TRUE(build_log.Load(log_path, &err));
     ASSERT_TRUE(build_log.OpenForWrite(log_path, *this, &err));
     ASSERT_EQ("", err);
     pbuild_log = &build_log;
   }
 
-  DepsLog deps_log, *pdeps_log = nullptr;
-  if (deps_path) {
+  DepsLog deps_log;
+  DepsLog *pdeps_log = nullptr;
+  if(deps_path)
+  {
     ASSERT_TRUE(deps_log.Load(deps_path, pstate, &err));
     ASSERT_TRUE(deps_log.OpenForWrite(deps_path, &err));
     ASSERT_EQ("", err);
@@ -568,49 +599,61 @@ void BuildTest::RebuildTarget(const std::string& target, const char* manifest,
 
   command_runner_.commands_ran_.clear();
   builder.command_runner_.reset(&command_runner_);
-  if (!builder.AlreadyUpToDate()) {
+  if( ! builder.AlreadyUpToDate())
+  {
     bool build_res = builder.Build(&err);
     EXPECT_TRUE(build_res);
   }
   builder.command_runner_.release();
 }
 
-bool FakeCommandRunner::CanRunMore() const {
+bool FakeCommandRunner::CanRunMore() const
+{
   return active_edges_.size() < max_active_edges_;
 }
 
-bool FakeCommandRunner::StartCommand(Edge* edge) {
+bool FakeCommandRunner::StartCommand(Edge* edge)
+{
   assert(active_edges_.size() < max_active_edges_);
-  assert(find(active_edges_.begin(), active_edges_.end(), edge)
-         == active_edges_.end());
+  assert(active_edges_.end() == find(active_edges_.begin(),
+                                     active_edges_.end(),
+                                     edge));
   commands_ran_.push_back(edge->EvaluateCommand());
-  if (edge->rule().name() == "cat"  ||
-      edge->rule().name() == "cat_rsp" ||
-      edge->rule().name() == "cat_rsp_out" ||
-      edge->rule().name() == "cc" ||
-      edge->rule().name() == "cp_multi_msvc" ||
-      edge->rule().name() == "cp_multi_gcc" ||
-      edge->rule().name() == "touch" ||
-      edge->rule().name() == "touch-interrupt" ||
-      edge->rule().name() == "touch-fail-tick2") {
-    for (const auto & item : edge->outputs_)
+  if(   edge->rule().name() == "cat"
+     || edge->rule().name() == "cat_rsp"
+     || edge->rule().name() == "cat_rsp_out"
+     || edge->rule().name() == "cc"
+     || edge->rule().name() == "cp_multi_msvc"
+     || edge->rule().name() == "cp_multi_gcc"
+     || edge->rule().name() == "touch"
+     || edge->rule().name() == "touch-interrupt"
+     || edge->rule().name() == "touch-fail-tick2")
+  {
+    for(const auto & item : edge->outputs_)
     {
       fs_->Create(item->path(), "");
     }
-  } else if (edge->rule().name() == "true" ||
-             edge->rule().name() == "fail" ||
-             edge->rule().name() == "interrupt" ||
-             edge->rule().name() == "console") {
+  }
+  else if(   edge->rule().name() == "true"
+          || edge->rule().name() == "fail"
+          || edge->rule().name() == "interrupt"
+          || edge->rule().name() == "console")
+  {
     // Don't do anything.
-  } else if (edge->rule().name() == "cp") {
+  }
+  else if(edge->rule().name() == "cp")
+  {
     assert(!edge->inputs_.empty());
     assert(edge->outputs_.size() == 1);
     std::string content;
     std::string err;
-    if (fs_->ReadFile(edge->inputs_[0]->path(), &content, &err) ==
-        DiskInterface::Okay)
+    if(DiskInterface::Okay == fs_->ReadFile(edge->inputs_[0]->path(), &content, &err))
+    {
       fs_->WriteFile(edge->outputs_[0]->path(), content);
-  } else {
+    }
+  }
+  else
+  {
     printf("unknown command\n");
     return false;
   }
@@ -624,9 +667,12 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
   return true;
 }
 
-bool FakeCommandRunner::WaitForCommand(Result* result) {
-  if (active_edges_.empty())
+bool FakeCommandRunner::WaitForCommand(Result* result)
+{
+  if(active_edges_.empty())
+  {
     return false;
+  }
 
   // All active edges were already completed immediately when started,
   // so we can pick any edge here.  Pick the last edge.  Tests can
@@ -636,44 +682,49 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
   Edge* edge = *edge_iter;
   result->edge = edge;
 
-  if (edge->rule().name() == "interrupt" ||
-      edge->rule().name() == "touch-interrupt") {
+  if(   edge->rule().name() == "interrupt"
+     || edge->rule().name() == "touch-interrupt")
+  {
     result->status = ExitInterrupted;
     return true;
   }
 
-  if (edge->rule().name() == "console") {
-    if (edge->use_console())
-      result->status = ExitSuccess;
-    else
-      result->status = ExitFailure;
+  if(edge->rule().name() == "console")
+  {
+    result->status =   edge->use_console()
+                     ? ExitSuccess
+                     : ExitFailure;
     active_edges_.erase(edge_iter);
     return true;
   }
 
-  if (edge->rule().name() == "cp_multi_msvc") {
+  if(edge->rule().name() == "cp_multi_msvc")
+  {
     const std::string prefix = edge->GetBinding("msvc_deps_prefix");
     for(auto const& in : edge->inputs_)
     {
-      result->output += prefix + in->path() + '\n';
+      string_append(result->output, prefix, in->path().generic_string(), "\n");
     }
   }
 
-  if (edge->rule().name() == "fail" ||
-      (edge->rule().name() == "touch-fail-tick2" && fs_->now_ == 2))
-    result->status = ExitFailure;
-  else
-    result->status = ExitSuccess;
+  result->status =   (   edge->rule().name() == "fail"
+                      || (   edge->rule().name() == "touch-fail-tick2"
+                          && fs_->now_ == TimeStamp(TimeStamp::duration(2))))
+                   ? ExitFailure
+                   : ExitSuccess;
 
   // Provide a way for test cases to verify when an edge finishes that
   // some other edge is still active.  This is useful for test cases
   // covering behavior involving multiple active edges.
   const std::string& verify_active_edge = edge->GetBinding("verify_active_edge");
-  if (!verify_active_edge.empty()) {
+  if( ! verify_active_edge.empty())
+  {
     bool verify_active_edge_found = false;
-    for (auto const& item : active_edges_) {
-      if (!item->outputs_.empty() &&
-          item->outputs_[0]->path() == verify_active_edge) {
+    for(auto const& item : active_edges_)
+    {
+      if(   ! item->outputs_.empty()
+         && item->outputs_[0]->path() == verify_active_edge)
+      {
         verify_active_edge_found = true;
       }
     }
@@ -684,26 +735,18 @@ bool FakeCommandRunner::WaitForCommand(Result* result) {
   return true;
 }
 
-std::vector<Edge*> FakeCommandRunner::GetActiveEdges() {
+std::vector<Edge*> FakeCommandRunner::GetActiveEdges()
+{
   return active_edges_;
 }
 
-void FakeCommandRunner::Abort() {
+void FakeCommandRunner::Abort()
+{
   active_edges_.clear();
 }
 
-void BuildTest::Dirty(const std::string& path) {
-  Node* node = GetNode(path);
-  node->MarkDirty();
-
-  // If it's an input file, mark that we've already stat()ed it and
-  // it's missing.
-  if (!node->in_edge())
-    node->MarkMissing();
-}
-
-TEST_F(BuildTest, NoWork) {
-  std::string err;
+TEST_F(BuildTest, NoWork)
+{
   EXPECT_TRUE(builder_.AlreadyUpToDate());
 }
 
@@ -716,20 +759,6 @@ TEST_F(BuildTest, OneStep) {
   ASSERT_EQ("", err);
   EXPECT_TRUE(builder_.Build(&err));
   ASSERT_EQ("", err);
-
-  ASSERT_EQ(1u, command_runner_.commands_ran_.size());
-  EXPECT_EQ("cat in1 > cat1", command_runner_.commands_ran_[0]);
-}
-
-TEST_F(BuildTest, OneStep2) {
-  // Given a target with one dirty input,
-  // we should rebuild the target.
-  Dirty("cat1");
-  std::string err;
-  EXPECT_TRUE(builder_.AddTarget("cat1", &err));
-  ASSERT_EQ("", err);
-  EXPECT_TRUE(builder_.Build(&err));
-  EXPECT_EQ("", err);
 
   ASSERT_EQ(1u, command_runner_.commands_ran_.size());
   EXPECT_EQ("cat in1 > cat1", command_runner_.commands_ran_[0]);
@@ -1784,7 +1813,7 @@ TEST_F(BuildTest, InterruptCleanup) {
   EXPECT_FALSE(builder_.Build(&err));
   EXPECT_EQ("interrupted by user", err);
   builder_.Cleanup();
-  EXPECT_GT(fs_.Stat("out1", &err), 0);
+  EXPECT_NE(fs_.Stat("out1", &err), TimeStamp::min());
   err = "";
 
   // A touched output of an interrupted command should be deleted.
@@ -1793,7 +1822,7 @@ TEST_F(BuildTest, InterruptCleanup) {
   EXPECT_FALSE(builder_.Build(&err));
   EXPECT_EQ("interrupted by user", err);
   builder_.Cleanup();
-  EXPECT_EQ(0, fs_.Stat("out2", &err));
+  EXPECT_EQ(TimeStamp::min(), fs_.Stat("out2", &err));
 }
 
 TEST_F(BuildTest, StatFailureAbortsBuild) {
@@ -1803,7 +1832,7 @@ TEST_F(BuildTest, StatFailureAbortsBuild) {
   fs_.Create("in", "");
 
   // This simulates a stat failure:
-  fs_.files_[kTooLongToStat].mtime = -1;
+  fs_.files_[kTooLongToStat].mtime = TimeStamp::max();
   fs_.files_[kTooLongToStat].stat_error = "stat failed";
 
   std::string err;
@@ -2145,7 +2174,7 @@ TEST_F(BuildWithDepsLogTest, Straightforward) {
     EXPECT_EQ("", err);
 
     // The deps file should have been removed.
-    EXPECT_EQ(0, fs_.Stat("in1.d", &err));
+    EXPECT_EQ(TimeStamp::min(), fs_.Stat("in1.d", &err));
     // Recreate it for the next step.
     fs_.Create("in1.d", "out: in2");
     deps_log.Close();
@@ -2225,7 +2254,7 @@ TEST_F(BuildWithDepsLogTest, ObsoleteDeps) {
   fs_.Create("out", "");
 
   // The deps file should have been removed, so no need to timestamp it.
-  EXPECT_EQ(0, fs_.Stat("in1.d", &err));
+  EXPECT_EQ(TimeStamp::min(), fs_.Stat("in1.d", &err));
 
   {
     State state;
@@ -2415,7 +2444,7 @@ TEST_F(BuildWithDepsLogTest, DepFileOKDepsLog) {
 
     Edge* edge = state.edges_.back();
 
-    state.GetNode("bar.h", 0)->MarkDirty();  // Mark bar.h as missing.
+    state.GetNode("bar.h")->MarkDirty();  // Mark bar.h as missing.
     EXPECT_TRUE(builder.AddTarget("fo o.o", &err));
     ASSERT_EQ("", err);
 
@@ -2479,7 +2508,7 @@ TEST_F(BuildWithDepsLogTest, DepFileDepsLogCanonicalize) {
 
     Edge* edge = state.edges_.back();
 
-    state.GetNode("bar.h", 0)->MarkDirty();  // Mark bar.h as missing.
+    state.GetNode("bar.h")->MarkDirty();  // Mark bar.h as missing.
     EXPECT_TRUE(builder.AddTarget("a/b/c/d/e/fo o.o", &err));
     ASSERT_EQ("", err);
 

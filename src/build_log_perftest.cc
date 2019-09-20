@@ -29,7 +29,7 @@
 const char kTestFilename[] = "BuildLogPerfTest-tempfile";
 
 struct NoDeadPaths : public BuildLogUser {
-  bool IsPathDead(std::string_view) const override final { return false; }
+  bool IsPathDead(std::filesystem::path const&) const override final { return false; }
 };
 
 bool WriteTestData(std::string* err) {
@@ -92,7 +92,7 @@ bool WriteTestData(std::string* err) {
     log.RecordCommand(state.edges_[i],
                       /*start_time=*/100 * i,
                       /*end_time=*/100 * i + 1,
-                      /*mtime=*/0);
+                      /*mtime=*/TimeStamp::min());
   }
 
   return true;
@@ -142,7 +142,8 @@ int main() {
   printf("min %dms  max %dms  avg %.1fms\n",
          min, max, total / times.size());
 
-  unlink(kTestFilename);
+  std::error_code ec;
+  std::filesystem::remove(kTestFilename, ec); // ignore return and ec;
 
   return 0;
 }

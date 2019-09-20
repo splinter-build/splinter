@@ -38,8 +38,10 @@ struct DiskInterfaceTest : public testing::Test {
 
   bool Touch(const char* path) {
     FILE *f = fopen(path, "w");
-    if (!f)
+    if( ! f)
+    {
       return false;
+    }
     return fclose(f) == 0;
   }
 
@@ -49,18 +51,18 @@ struct DiskInterfaceTest : public testing::Test {
 
 TEST_F(DiskInterfaceTest, StatMissingFile) {
   std::string err;
-  EXPECT_EQ(0, disk_.Stat("nosuchfile", &err));
+  EXPECT_EQ(TimeStamp::min(), disk_.Stat("nosuchfile", &err));
   EXPECT_EQ("", err);
 
   // On Windows, the errno for a file in a nonexistent directory
   // is different.
-  EXPECT_EQ(0, disk_.Stat("nosuchdir/nosuchfile", &err));
+  EXPECT_EQ(TimeStamp::min(), disk_.Stat("nosuchdir/nosuchfile", &err));
   EXPECT_EQ("", err);
 
   // On POSIX systems, the errno is different if a component of the
   // path prefix is not a directory.
   ASSERT_TRUE(Touch("notadir"));
-  EXPECT_EQ(0, disk_.Stat("notadir/nosuchfile", &err));
+  EXPECT_EQ(TimeStamp::min(), disk_.Stat("notadir/nosuchfile", &err));
   EXPECT_EQ("", err);
 }
 
@@ -68,11 +70,11 @@ TEST_F(DiskInterfaceTest, StatBadPath) {
   std::string err;
 #ifdef _WIN32
   std::string bad_path("cc:\\foo");
-  EXPECT_EQ(-1, disk_.Stat(bad_path, &err));
+  EXPECT_EQ(TimeStamp::max(), disk_.Stat(bad_path, &err));
   EXPECT_NE("", err);
 #else
   std::string too_long_name(512, 'x');
-  EXPECT_EQ(-1, disk_.Stat(too_long_name, &err));
+  EXPECT_EQ(TimeStamp::max(), disk_.Stat(too_long_name, &err));
   EXPECT_NE("", err);
 #endif
 }
@@ -80,7 +82,7 @@ TEST_F(DiskInterfaceTest, StatBadPath) {
 TEST_F(DiskInterfaceTest, StatExistingFile) {
   std::string err;
   ASSERT_TRUE(Touch("file"));
-  EXPECT_GT(disk_.Stat("file", &err), 1);
+  EXPECT_GT(disk_.Stat("file", &err), TimeStamp::min());
   EXPECT_EQ("", err);
 }
 
@@ -88,13 +90,13 @@ TEST_F(DiskInterfaceTest, StatExistingDir) {
   std::string err;
   ASSERT_TRUE(disk_.MakeDir("subdir"));
   ASSERT_TRUE(disk_.MakeDir("subdir/subsubdir"));
-  EXPECT_GT(disk_.Stat("..", &err), 1);
+  EXPECT_GT(disk_.Stat("..", &err), TimeStamp::min());
   EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat(".", &err), 1);
+  EXPECT_GT(disk_.Stat(".", &err), TimeStamp::min());
   EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat("subdir", &err), 1);
+  EXPECT_GT(disk_.Stat("subdir", &err), TimeStamp::min());
   EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat("subdir/subsubdir", &err), 1);
+  EXPECT_GT(disk_.Stat("subdir/subsubdir", &err), TimeStamp::min());
   EXPECT_EQ("", err);
 
   EXPECT_EQ(disk_.Stat("subdir", &err),
@@ -121,23 +123,23 @@ TEST_F(DiskInterfaceTest, StatCache) {
   TimeStamp parent_stat_uncached = disk_.Stat("..", &err);
   disk_.AllowStatCache(true);
 
-  EXPECT_GT(disk_.Stat("FIle1", &err), 1);
+  EXPECT_GT(disk_.Stat("FIle1", &err), TimeStamp::min());
   EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat("file1", &err), 1);
-  EXPECT_EQ("", err);
-
-  EXPECT_GT(disk_.Stat("subdir/subfile2", &err), 1);
-  EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat("sUbdir\\suBFile1", &err), 1);
+  EXPECT_GT(disk_.Stat("file1", &err), TimeStamp::min());
   EXPECT_EQ("", err);
 
-  EXPECT_GT(disk_.Stat("..", &err), 1);
+  EXPECT_GT(disk_.Stat("subdir/subfile2", &err), TimeStamp::min());
   EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat(".", &err), 1);
+  EXPECT_GT(disk_.Stat("sUbdir\\suBFile1", &err), TimeStamp::min());
   EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat("subdir", &err), 1);
+
+  EXPECT_GT(disk_.Stat("..", &err), TimeStamp::min());
   EXPECT_EQ("", err);
-  EXPECT_GT(disk_.Stat("subdir/subsubdir", &err), 1);
+  EXPECT_GT(disk_.Stat(".", &err), TimeStamp::min());
+  EXPECT_EQ("", err);
+  EXPECT_GT(disk_.Stat("subdir", &err), TimeStamp::min());
+  EXPECT_EQ("", err);
+  EXPECT_GT(disk_.Stat("subdir/subsubdir", &err), TimeStamp::min());
   EXPECT_EQ("", err);
 
 #ifndef _MSC_VER // TODO: Investigate why. Also see https://github.com/ninja-build/ninja/pull/1423
@@ -156,13 +158,13 @@ TEST_F(DiskInterfaceTest, StatCache) {
 
   // Test error cases.
   std::string bad_path("cc:\\foo");
-  EXPECT_EQ(-1, disk_.Stat(bad_path, &err));
+  EXPECT_EQ(TimeStamp::max(), disk_.Stat(bad_path, &err));
   EXPECT_NE("", err); err.clear();
-  EXPECT_EQ(-1, disk_.Stat(bad_path, &err));
+  EXPECT_EQ(TimeStamp::max(), disk_.Stat(bad_path, &err));
   EXPECT_NE("", err); err.clear();
-  EXPECT_EQ(0, disk_.Stat("nosuchfile", &err));
+  EXPECT_EQ(TimeStamp::min(), disk_.Stat("nosuchfile", &err));
   EXPECT_EQ("", err);
-  EXPECT_EQ(0, disk_.Stat("nosuchdir/nosuchfile", &err));
+  EXPECT_EQ(TimeStamp::min(), disk_.Stat("nosuchdir/nosuchfile", &err));
   EXPECT_EQ("", err);
 }
 #endif
@@ -217,22 +219,36 @@ struct StatTest : public StateTestWithBuiltinRules,
   StatTest() : scan_(&state_, nullptr, nullptr, this, nullptr) {}
 
   // DiskInterface implementation.
-  TimeStamp Stat(const std::string& path, std::string* err) const override final;
-  bool WriteFile(const std::string& path, const std::string& contents) override final {
+  TimeStamp Stat(std::filesystem::path const& path, std::string* err) const override final;
+
+  bool WriteFile(std::filesystem::path const&, std::string_view) override final
+  {
     assert(false);
     return true;
   }
-  bool MakeDir(const std::string& path) override final {
+
+  bool MakeDir(std::filesystem::path const&) override final
+  {
     assert(false);
     return false;
   }
-  Status ReadFile(const std::string& path, std::string* contents, std::string* err) override final {
+
+  Status ReadFile(std::filesystem::path const&, std::string*, std::string*) override final
+  {
     assert(false);
     return NotFound;
   }
-  int RemoveFile(const std::string& path) override final {
+
+  int RemoveFile(std::filesystem::path const&) override final
+  {
     assert(false);
     return 0;
+  }
+
+  bool MakeDirs(std::filesystem::path const&) override final
+  {
+      assert(false);
+      return 0;
   }
 
   DependencyScan scan_;
@@ -240,11 +256,11 @@ struct StatTest : public StateTestWithBuiltinRules,
   mutable std::vector<std::string> stats_;
 };
 
-TimeStamp StatTest::Stat(const std::string& path, std::string* err) const {
-  stats_.push_back(path);
-  std::map<std::string, TimeStamp>::const_iterator i = mtimes_.find(path);
+TimeStamp StatTest::Stat(std::filesystem::path const& path, std::string* err) const {
+  stats_.push_back(path.generic_string());
+  std::map<std::string, TimeStamp>::const_iterator i = mtimes_.find(path.generic_string());
   if (i == mtimes_.end())
-    return 0;  // File not found.
+    return TimeStamp::min();  // File not found.
   return i->second;
 }
 
@@ -305,9 +321,9 @@ TEST_F(StatTest, Middle) {
 "build out: cat mid\n"
 "build mid: cat in\n"));
 
-  mtimes_["in"] = 1;
-  mtimes_["mid"] = 0;  // missing
-  mtimes_["out"] = 1;
+  mtimes_["in"] = TimeStamp(TimeStamp::duration(1));
+  mtimes_["mid"] = TimeStamp::min();  // missing
+  mtimes_["out"] = TimeStamp(TimeStamp::duration(1));
 
   Node* out = GetNode("out");
   std::string err;

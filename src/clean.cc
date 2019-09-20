@@ -25,35 +25,39 @@
 Cleaner::Cleaner(State* state,
                  const BuildConfig& config,
                  DiskInterface* disk_interface)
-  : state_(state),
-    config_(config),
-    dyndep_loader_(state, disk_interface),
-    removed_(),
-    cleaned_(),
-    cleaned_files_count_(0),
-    disk_interface_(disk_interface),
-    status_(0) {
-}
+  : state_(state)
+  , config_(config)
+  , dyndep_loader_(state, disk_interface)
+  , removed_()
+  , cleaned_()
+  , cleaned_files_count_(0)
+  , disk_interface_(disk_interface)
+  , status_(0)
+{ }
 
-int Cleaner::RemoveFile(const std::string& path) {
+int Cleaner::RemoveFile(std::filesystem::path const& path)
+{
   return disk_interface_->RemoveFile(path);
 }
 
-bool Cleaner::FileExists(const std::string& path) {
+bool Cleaner::FileExists(std::filesystem::path const& path)
+{
   std::string err;
   TimeStamp mtime = disk_interface_->Stat(path, &err);
-  if (mtime == -1)
+  if(mtime == TimeStamp::max())
+  {
     Error("%s", err.c_str());
-  return mtime > 0;  // Treat Stat() errors as "file does not exist".
+  }
+  return mtime > TimeStamp::min();  // Treat Stat() errors as "file does not exist".
 }
 
-void Cleaner::Report(const std::string& path) {
+void Cleaner::Report(std::filesystem::path const& path) {
   ++cleaned_files_count_;
   if (IsVerbose())
-    printf("Remove %s\n", path.c_str());
+    printf("Remove %s\n", path.generic_string().c_str());
 }
 
-void Cleaner::Remove(const std::string& path) {
+void Cleaner::Remove(std::filesystem::path const& path) {
   if (!IsAlreadyRemoved(path)) {
     removed_.insert(path);
     if (config_.dry_run) {
@@ -69,17 +73,16 @@ void Cleaner::Remove(const std::string& path) {
   }
 }
 
-bool Cleaner::IsAlreadyRemoved(const std::string& path) {
-  std::set<std::string>::iterator i = removed_.find(path);
-  return (i != removed_.end());
+bool Cleaner::IsAlreadyRemoved(std::filesystem::path const& path) {
+  return removed_.find(path) != removed_.end();
 }
 
 void Cleaner::RemoveEdgeFiles(Edge* edge) {
-  std::string depfile = edge->GetUnescapedDepfile();
+  std::filesystem::path const& depfile = edge->GetUnescapedDepfile();
   if (!depfile.empty())
     Remove(depfile);
 
-  std::string rspfile = edge->GetUnescapedRspfile();
+  std::filesystem::path const& rspfile = edge->GetUnescapedRspfile();
   if (!rspfile.empty())
     Remove(rspfile);
 }
@@ -130,7 +133,7 @@ int Cleaner::CleanDead(const BuildLog::Entries& entries) {
   for (const auto& entry : entries) {
     Node* n = state_->LookupNode(entry.first);
     if (!n || !n->in_edge()) {
-      Remove(std::string(entry.first));
+      Remove(entry.first);
     }
   }
   PrintFooter();
@@ -186,22 +189,14 @@ int Cleaner::CleanTargets(int target_count, char* targets[]) {
   PrintHeader();
   LoadDyndeps();
   for (int i = 0; i < target_count; ++i) {
-    std::string target_name = targets[i];
-    uint64_t slash_bits;
-    std::string err;
-    if (!CanonicalizePath(&target_name, &slash_bits, &err)) {
-      Error("failed to canonicalize '%s': %s", target_name.c_str(), err.c_str());
-      status_ = 1;
+    Node* target = state_->LookupNode(targets[i]);
+    if (target) {
+      if (IsVerbose())
+        printf("Target %s\n", targets[i]);
+      DoCleanTarget(target);
     } else {
-      Node* target = state_->LookupNode(target_name);
-      if (target) {
-        if (IsVerbose())
-          printf("Target %s\n", target_name.c_str());
-        DoCleanTarget(target);
-      } else {
-        Error("unknown target '%s'", target_name.c_str());
-        status_ = 1;
-      }
+      Error("unknown target '%s'", targets[i]);
+      status_ = 1;
     }
   }
   PrintFooter();

@@ -42,7 +42,13 @@ bool InternalGetFullPathName(std::string_view file_name, char* buffer,
   return true;
 }
 
-bool IsPathSeparator(char c) {
+static constexpr bool islatinalpha(char c)
+{
+  // isalpha() is locale-dependent.
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
+
+static constexpr bool IsPathSeparator(char c) {
   return c == '/' ||  c == '\\';
 }
 
@@ -189,9 +195,6 @@ bool IncludesNormalize::Normalize(const std::string& input,
     return false;
   }
   strncpy(copy, input.c_str(), input.size() + 1);
-  uint64_t slash_bits;
-  if (!CanonicalizePath(copy, &len, &slash_bits, err))
-    return false;
   std::string_view partially_fixed(copy, len);
   std::string abs_input = AbsPath(partially_fixed, err);
   if (!err->empty())

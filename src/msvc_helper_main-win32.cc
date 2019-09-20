@@ -49,27 +49,31 @@ void PushPathIntoEnvironment(const std::string& env_block) {
   }
 }
 
-void WriteDepFileOrDie(const char* object_path, const CLParser& parse) {
-  std::string depfile_path = string_concat(object_path, ".d");
-  FILE* depfile = fopen(depfile_path.c_str(), "w");
+void WriteDepFileOrDie(std::filesystem::path object_path, const CLParser& parse) {
+  std::filesystem::path depfile_path = object_path;
+  depfile_path += std::string_view(".d");
+  FILE* depfile = fopen(depfile_path.generic_string().c_str(), "w");
   if (!depfile) {
-    unlink(object_path);
-    Fatal("opening %s: %s", depfile_path.c_str(),
+    std::error_code ec;
+    std::filesystem::remove(object_path, ec); // ignore return and ec;
+    Fatal("opening %s: %s", depfile_path.generic_string().c_str(),
           GetLastErrorString().c_str());
   }
   if (fprintf(depfile, "%s: ", object_path) < 0) {
-    unlink(object_path);
+    std::error_code ec;
+    std::filesystem::remove(object_path, ec); // ignore return and ec;
     fclose(depfile);
-    unlink(depfile_path.c_str());
-    Fatal("writing %s", depfile_path.c_str());
+    std::filesystem::remove(depfile_path, ec); // ignore return and ec;
+    Fatal("writing %s", depfile_path.generic_string().c_str());
   }
   for (const auto & header : parse.includes_)
   {
-    if (fprintf(depfile, "%s\n", EscapeForDepfile(header).c_str()) < 0)
+    if (fprintf(depfile, "%s\n", EscapeForDepfile(header.generic_string()).c_str()) < 0)
     {
-      unlink(object_path);
+      std::error_code ec;
+      std::filesystem::remove(object_path, ec); // ignore return and ec;
       fclose(depfile);
-      unlink(depfile_path.c_str());
+      std::filesystem::remove(depfile_path, ec); // ignore return and ec;
       Fatal("writing %s", depfile_path.c_str());
     }
   }
@@ -79,7 +83,7 @@ void WriteDepFileOrDie(const char* object_path, const CLParser& parse) {
 }  // anonymous namespace
 
 int MSVCHelperMain(int argc, char** argv) {
-  const char* output_filename = nullptr;
+  std::filesystem::path output_filename;
   const char* envfile = nullptr;
 
   const option kLongOptions[] = {
@@ -127,12 +131,13 @@ int MSVCHelperMain(int argc, char** argv) {
   std::string output;
   int exit_code = cl.Run(command, &output);
 
-  if (output_filename) {
+  if( ! output_filename.empty())
+  {
     CLParser parser;
     std::string err;
     if (!parser.Parse(output, deps_prefix, &output, &err))
       Fatal("%s\n", err.c_str());
-    WriteDepFileOrDie(output_filename, parser);
+    WriteDepFileOrDie(std::move(output_filename), parser);
   }
 
   if (output.empty())

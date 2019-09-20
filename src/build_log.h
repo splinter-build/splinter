@@ -15,14 +15,15 @@
 #ifndef NINJA_BUILD_LOG_H_
 #define NINJA_BUILD_LOG_H_
 
-#include <string>
-#include <stdio.h>
+#include "util.h"  // uint64_t
+#include "timestamp.h"
+#include "load_status.h"
 
+#include <string>
+#include <filesystem>
 #include <unordered_map>
 
-#include "load_status.h"
-#include "timestamp.h"
-#include "util.h"  // uint64_t
+#include <stdio.h>
 
 struct DiskInterface;
 struct Edge;
@@ -31,7 +32,7 @@ struct Edge;
 struct BuildLogUser {
   /// Return if a given output is no longer part of the build manifest.
   /// This is only called during recompaction and doesn't have to be fast.
-  virtual bool IsPathDead(std::string_view s) const = 0;
+  virtual bool IsPathDead(std::filesystem::path const& p) const = 0;
 };
 
 /// Store a log of every command ran for every build.
@@ -48,11 +49,11 @@ struct BuildLog final {
   bool OpenForWrite(const std::string& path, const BuildLogUser& user,
                     std::string* err);
   bool RecordCommand(Edge* edge, int start_time, int end_time,
-                     TimeStamp mtime = 0);
+                     TimeStamp mtime = TimeStamp::min());
   void Close();
 
   /// Load the on-disk log.
-  LoadStatus Load(const std::string& path, std::string* err);
+  LoadStatus Load(std::filesystem::path const& path, std::string* err);
 
   struct LogEntry final {
     std::string output;
@@ -86,10 +87,11 @@ struct BuildLog final {
                  std::string* err);
 
   /// Restat all outputs in the log
-  bool Restat(std::string_view path, const DiskInterface& disk_interface,
+  bool Restat(std::filesystem::path const& path, const DiskInterface& disk_interface,
               int output_count, char** outputs, std::string* err);
 
-  using Entries = std::unordered_map<std::string_view, LogEntry*>;
+  using Entries = std::unordered_map<std::filesystem::path, LogEntry*>;
+
   const Entries& entries() const { return entries_; }
 
  private:

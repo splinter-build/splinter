@@ -92,9 +92,8 @@ void StateTestWithBuiltinRules::AddCatRule(State* state) {
 "  command = cat $in > $out\n");
 }
 
-Node* StateTestWithBuiltinRules::GetNode(const std::string& path) {
-  EXPECT_FALSE(strpbrk(path.c_str(), "/\\"));
-  return state_.GetNode(path, 0);
+Node* StateTestWithBuiltinRules::GetNode(std::filesystem::path const& path) {
+  return state_.GetNode(path);
 }
 
 void AssertParse(State* state, const char* input,
@@ -143,33 +142,33 @@ void VerifyGraph(const State& state) {
   EXPECT_EQ(node_edge_set, edge_set);
 }
 
-void VirtualFileSystem::Create(const std::string& path,
-                               const std::string& contents) {
+void VirtualFileSystem::Create(std::filesystem::path const& path,
+                               std::string_view contents) {
   files_[path].mtime = now_;
   files_[path].contents = contents;
   files_created_.insert(path);
 }
 
-TimeStamp VirtualFileSystem::Stat(const std::string& path, std::string* err) const {
+TimeStamp VirtualFileSystem::Stat(std::filesystem::path const& path, std::string* err) const {
   FileMap::const_iterator i = files_.find(path);
   if (i != files_.end()) {
     *err = i->second.stat_error;
     return i->second.mtime;
   }
-  return 0;
+  return TimeStamp::min();
 }
 
-bool VirtualFileSystem::WriteFile(const std::string& path, const std::string& contents) {
+bool VirtualFileSystem::WriteFile(std::filesystem::path const& path, std::string_view contents) {
   Create(path, contents);
   return true;
 }
 
-bool VirtualFileSystem::MakeDir(const std::string& path) {
+bool VirtualFileSystem::MakeDir(std::filesystem::path const& path) {
   directories_made_.push_back(path);
   return true;  // success
 }
 
-FileReader::Status VirtualFileSystem::ReadFile(const std::string& path,
+FileReader::Status VirtualFileSystem::ReadFile(std::filesystem::path const& path,
                                                std::string* contents,
                                                std::string* err) {
   files_read_.push_back(path);
@@ -182,7 +181,7 @@ FileReader::Status VirtualFileSystem::ReadFile(const std::string& path,
   return NotFound;
 }
 
-int VirtualFileSystem::RemoveFile(const std::string& path) {
+int VirtualFileSystem::RemoveFile(std::filesystem::path const& path) {
   if (find(directories_made_.begin(), directories_made_.end(), path)
       != directories_made_.end())
     return -1;
@@ -196,13 +195,41 @@ int VirtualFileSystem::RemoveFile(const std::string& path) {
   }
 }
 
+bool VirtualFileSystem::MakeDirs(std::filesystem::path const& path)
+{
+    std::filesystem::path work = path;
+    work.remove_filename();
+    work = work.parent_path();
+
+    if(work == work.root_directory())
+    {
+        return true;
+    }
+
+    if( ! MakeDirs(work))
+    {
+        return false;
+    }
+
+    return MakeDir(work);
+}
+
 void ScopedTempDir::CreateAndEnter(const std::string& name) {
   // First change into the system temp dir and save it for cleanup.
   start_dir_ = GetSystemTempDir();
-  if (start_dir_.empty())
+  if(start_dir_.empty())
+  {
     Fatal("couldn't get system temp dir");
-  if (chdir(start_dir_.c_str()) < 0)
-    Fatal("chdir: %s", strerror(errno));
+  }
+
+  {
+    std::error_code ec;
+    std::filesystem::current_path(start_dir_);
+    if(ec)
+    {
+      Fatal("chdir: %s", strerror(errno));
+    }
+  }
 
   // Create a temporary subdirectory of that.
   char name_template[1024];
@@ -214,8 +241,14 @@ void ScopedTempDir::CreateAndEnter(const std::string& name) {
   temp_dir_name_ = tempname;
 
   // chdir into the new temporary directory.
-  if (chdir(temp_dir_name_.c_str()) < 0)
-    Fatal("chdir: %s", strerror(errno));
+  {
+    std::error_code ec;
+    std::filesystem::current_path(temp_dir_name_);
+    if(ec)
+    {
+      Fatal("chdir: %s", strerror(errno));
+    }
+  }
 }
 
 void ScopedTempDir::Cleanup() {
@@ -223,8 +256,12 @@ void ScopedTempDir::Cleanup() {
     return;  // Something went wrong earlier.
 
   // Move out of the directory we're about to clobber.
-  if (chdir(start_dir_.c_str()) < 0)
+  std::error_code ec;
+  std::filesystem::current_path(start_dir_);
+  if(ec)
+  {
     Fatal("chdir: %s", strerror(errno));
+  }
 
 #ifdef _WIN32
   std::string command = "rmdir /s /q " + temp_dir_name_;
