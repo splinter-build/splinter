@@ -72,7 +72,7 @@ struct Rule final {
   friend struct ManifestParser;
 
   std::string name_;
-  typedef std::map<std::string, EvalString> Bindings;
+  typedef std::map<std::string, EvalString, std::less<>> Bindings;
   Bindings bindings_;
 };
 
@@ -88,7 +88,9 @@ struct BindingEnv final : public Env {
   void AddRule(const Rule* rule);
   const Rule* LookupRule(const std::string& rule_name);
   const Rule* LookupRuleCurrentScope(const std::string& rule_name);
-  const std::map<std::string, const Rule*>& GetRules() const;
+
+  using RuleMap = std::map<std::string, const Rule*, std::less<>>;
+  RuleMap const& GetRules() const;
 
   void AddBinding(const std::string& key, const std::string& val);
 
@@ -101,8 +103,10 @@ struct BindingEnv final : public Env {
                                  Env* env);
 
 private:
-  std::map<std::string, std::string> bindings_;
-  std::map<std::string, const Rule*> rules_;
+  using BindingMap = std::map<std::string, std::string, std::less<>>;
+
+  BindingMap bindings_;
+  RuleMap rules_;
   BindingEnv* parent_ = nullptr;
 };
 
