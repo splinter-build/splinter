@@ -43,7 +43,7 @@ DepsLog::~DepsLog() {
   Close();
 }
 
-bool DepsLog::OpenForWrite(const std::string& path, std::string* err) {
+bool DepsLog::OpenForWrite(const std::string& path, std::error_code& err) {
   if (needs_recompaction_) {
     if (!Recompact(path, err))
       return false;
@@ -51,7 +51,7 @@ bool DepsLog::OpenForWrite(const std::string& path, std::string* err) {
 
   file_ = fopen(path.c_str(), "ab");
   if (!file_) {
-    *err = strerror(errno);
+    err = std::error_code(errno, std::system_category());
     return false;
   }
   // Set the buffer size to this and flush the file buffer after every record
@@ -65,16 +65,16 @@ bool DepsLog::OpenForWrite(const std::string& path, std::string* err) {
 
   if (ftell(file_) == 0) {
     if (fwrite(kFileSignature, sizeof(kFileSignature) - 1, 1, file_) < 1) {
-      *err = strerror(errno);
+      err = std::error_code(errno, std::system_category());
       return false;
     }
     if (fwrite(&kCurrentVersion, 4, 1, file_) < 1) {
-      *err = strerror(errno);
+      err = std::error_code(errno, std::system_category());
       return false;
     }
   }
   if (fflush(file_) != 0) {
-    *err = strerror(errno);
+    err = std::error_code(errno, std::system_category());
     return false;
   }
   return true;
@@ -169,14 +169,14 @@ void DepsLog::Close() {
   file_ = nullptr;
 }
 
-LoadStatus DepsLog::Load(std::filesystem::path const& path, State* state, std::string* err) {
+LoadStatus DepsLog::Load(std::filesystem::path const& path, State* state, std::error_code& err) {
   METRIC_RECORD(".ninja_deps load");
   char buf[kMaxRecordSize + 1];
   FILE* f = fopen(path.generic_string().c_str(), "rb");
   if (!f) {
     if (errno == ENOENT)
       return LOAD_NOT_FOUND;
-    *err = strerror(errno);
+    err = std::error_code(errno, std::system_category());
     return LOAD_ERROR;
   }
 
@@ -191,9 +191,13 @@ LoadStatus DepsLog::Load(std::filesystem::path const& path, State* state, std::s
   if (!valid_header || strcmp(buf, kFileSignature) != 0 ||
       version != kCurrentVersion) {
     if (version == 1)
-      *err = "deps log version change; rebuilding";
+    {
+      err = std::make_error_code(std::errc::wrong_protocol_type);
+    }
     else
-      *err = "bad deps log signature or version; starting over";
+    {
+        err = std::make_error_code(std::errc::illegal_byte_sequence);
+    }
     fclose(f);
     std::error_code ec;
     std::filesystem::remove(path, ec); // ignore return and ec;
@@ -274,9 +278,9 @@ LoadStatus DepsLog::Load(std::filesystem::path const& path, State* state, std::s
     // An error occurred while loading; try to recover by truncating the
     // file to the last fully-read record.
     if (ferror(f)) {
-      *err = strerror(ferror(f));
+      err = std::error_code(errno, std::system_category());
     } else {
-      *err = "premature end of file";
+      err = std::make_error_code(std::errc::broken_pipe);
     }
     fclose(f);
 
@@ -285,7 +289,7 @@ LoadStatus DepsLog::Load(std::filesystem::path const& path, State* state, std::s
 
     // The truncate succeeded; we'll just report the load error as a
     // warning because the build can proceed.
-    *err += "; recovering";
+    //*err += "; recovering";
     return LOAD_SUCCESS;
   }
 
@@ -310,7 +314,7 @@ DepsLog::Deps* DepsLog::GetDeps(Node* node) {
   return deps_[node->id()];
 }
 
-bool DepsLog::Recompact(const std::string& path, std::string* err) {
+bool DepsLog::Recompact(const std::string& path, std::error_code& err) {
   METRIC_RECORD(".ninja_deps recompact");
 
   Close();
@@ -353,23 +357,15 @@ bool DepsLog::Recompact(const std::string& path, std::string* err) {
   deps_.swap(new_log.deps_);
   nodes_.swap(new_log.nodes_);
 
+  if( ! std::filesystem::remove(path, err) || err)
   {
-    std::error_code ec;
-    if( ! std::filesystem::remove(path, ec))
-    {
-      *err = ec.message();
-      return false;
-    }
+    return false;
   }
 
+  std::filesystem::rename(temp_path, path, err);
+  if(err)
   {
-    std::error_code ec;
-    std::filesystem::rename(temp_path, path, ec);
-    if(ec)
-    {
-      *err = ec.message();
-      return false;
-    }
+    return false;
   }
 
   return true;

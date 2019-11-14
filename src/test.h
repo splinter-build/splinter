@@ -147,17 +147,16 @@ struct VirtualFileSystem final : public DiskInterface {
   }
 
   // DiskInterface
-  TimeStamp Stat(std::filesystem::path const& path, std::string* err) const override final;
+  TimeStamp Stat(std::filesystem::path const& path, std::error_code& err) const override final;
   bool WriteFile(std::filesystem::path const& path, std::string_view contents) override final;
   bool MakeDir(std::filesystem::path const& path) override final;
-  Status ReadFile(std::filesystem::path const& path, std::string* contents, std::string* err) override final;
+  Status ReadFile(std::filesystem::path const& path, std::string* contents, std::error_code& err) override final;
   int RemoveFile(std::filesystem::path const& path) override final;
   bool MakeDirs(std::filesystem::path const& path) override final;
 
   /// An entry for a single in-memory file.
   struct Entry final {
     TimeStamp mtime;
-    std::string stat_error;  // If mtime is -1.
     std::string contents;
   };
 

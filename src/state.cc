@@ -155,17 +155,17 @@ bool State::AddOut(Edge* edge, std::filesystem::path const& path) {
   return true;
 }
 
-bool State::AddDefault(std::filesystem::path const& path, std::string* err) {
+bool State::AddDefault(std::filesystem::path const& path, std::error_code& err) {
   Node* node = LookupNode(path);
   if (!node) {
-    *err = string_concat("unknown target '", path.generic_string(), "'");
+    err = std::make_error_code(std::errc::invalid_argument);
     return false;
   }
   defaults_.push_back(node);
   return true;
 }
 
-std::vector<Node*> State::RootNodes(std::string* err) const {
+std::vector<Node*> State::RootNodes(std::error_code& err) const {
   std::vector<Node*> root_nodes;
   // Search for nodes with no output.
   for (const auto & edge : edges_)
@@ -180,12 +180,15 @@ std::vector<Node*> State::RootNodes(std::string* err) const {
   }
 
   if (!edges_.empty() && root_nodes.empty())
-    *err = "could not determine root nodes of build graph";
+  {
+    err = std::make_error_code(std::errc::invalid_argument);
+//    *err = "could not determine root nodes of build graph";
+  }
 
   return root_nodes;
 }
 
-std::vector<Node*> State::DefaultNodes(std::string* err) const {
+std::vector<Node*> State::DefaultNodes(std::error_code& err) const {
   return defaults_.empty() ? RootNodes(err) : defaults_;
 }
 

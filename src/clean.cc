@@ -42,11 +42,11 @@ int Cleaner::RemoveFile(std::filesystem::path const& path)
 
 bool Cleaner::FileExists(std::filesystem::path const& path)
 {
-  std::string err;
-  TimeStamp mtime = disk_interface_->Stat(path, &err);
+  std::error_code err;
+  TimeStamp mtime = disk_interface_->Stat(path, err);
   if(mtime == TimeStamp::max())
   {
-    Error("%s", err.c_str());
+    Error("%s", err.message().c_str());
   }
   return mtime > TimeStamp::min();  // Treat Stat() errors as "file does not exist".
 }
@@ -279,8 +279,8 @@ void Cleaner::LoadDyndeps() {
     if (Node* dyndep = item->dyndep_) {
       // Capture and ignore errors loading the dyndep file.
       // We clean as much of the graph as we know.
-      std::string err;
-      dyndep_loader_.LoadDyndeps(dyndep, &err);
+      std::error_code err;
+      dyndep_loader_.LoadDyndeps(dyndep, err);
     }
   }
 }

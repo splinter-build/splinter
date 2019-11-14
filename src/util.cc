@@ -174,7 +174,8 @@ void GetWin32EscapedString(const std::string& input, std::string* result) {
   result->push_back(kQuote);
 }
 
-int ReadFile(std::filesystem::path const& path, std::string* contents, std::string* err) {
+int ReadFile(std::filesystem::path const& path, std::string* contents, std::error_code& err)
+{
 #ifdef _WIN32
   // This makes a ninja run on a set of 1500 manifest files about 4% faster
   // than using the generic fopen code below.
@@ -203,13 +204,13 @@ int ReadFile(std::filesystem::path const& path, std::string* contents, std::stri
 #else
   FILE* f = fopen(path.c_str(), "rb");
   if (!f) {
-    err->assign(strerror(errno));
+    err = std::error_code(errno, std::system_category());
     return -errno;
   }
 
   struct stat st;
   if (fstat(fileno(f), &st) < 0) {
-    err->assign(strerror(errno));
+    err = std::error_code(errno, std::system_category());
     fclose(f);
     return -errno;
   }
@@ -223,7 +224,7 @@ int ReadFile(std::filesystem::path const& path, std::string* contents, std::stri
     contents->append(buf, len);
   }
   if (ferror(f)) {
-    err->assign(strerror(errno));  // XXX errno?
+    err = std::error_code(errno, std::system_category());  // XXX errno?
     contents->clear();
     fclose(f);
     return -errno;
@@ -475,14 +476,9 @@ std::string ElideMiddle(std::string_view const str, size_t const width)
   return std::string(str);
 }
 
-bool Truncate(std::filesystem::path const& path, size_t size, std::string* err)
+bool Truncate(std::filesystem::path const& path, size_t const size, std::error_code& err)
 {
   std::error_code ec;
   std::filesystem::resize_file(path, size, ec);
-  if(ec)
-  {
-    *err = ec.message();
-    return false;
-  }
-  return true;
+  return ! ec;
 }

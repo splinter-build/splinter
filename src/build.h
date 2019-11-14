@@ -46,7 +46,7 @@ struct Plan {
   /// Add a target to our plan (including all its dependencies).
   /// Returns false if we don't need to build this target; may
   /// fill in |err| with an error message if there's a problem.
-  bool AddTarget(const Node* node, std::string* err);
+  bool AddTarget(Node* node, std::error_code& err);
 
   // Pop a ready edge off the queue of edges to build.
   // Returns nullptr if there's no work to do.
@@ -67,11 +67,11 @@ struct Plan {
   /// If any of the edge's outputs are dyndep bindings of their dependents,
   /// this loads dynamic dependencies from the nodes' paths.
   /// Returns 'false' if loading dyndep info fails and 'true' otherwise.
-  bool EdgeFinished(Edge* edge, EdgeResult result, std::string* err);
+  bool EdgeFinished(Edge* edge, EdgeResult result, std::error_code& err);
 
   /// Clean the given node during the build.
   /// Return false on error.
-  bool CleanNode(DependencyScan* scan, Node* node, std::string* err);
+  bool CleanNode(DependencyScan* scan, Node* node, std::error_code& err);
 
   /// Number of edges with commands to run.
   int command_edge_count() const { return command_edges_; }
@@ -81,19 +81,19 @@ struct Plan {
 
   /// Update the build plan to account for modifications made to the graph
   /// by information loaded from a dyndep file.
-  bool DyndepsLoaded(DependencyScan* scan, const Node* node,
-                     const DyndepFile& ddf, std::string* err);
+  bool DyndepsLoaded(DependencyScan* scan, Node* node,
+                     const DyndepFile& ddf, std::error_code& err);
 private:
-  bool RefreshDyndepDependents(DependencyScan* scan, const Node* node, std::string* err);
+  bool RefreshDyndepDependents(DependencyScan* scan, Node* node, std::error_code& err);
   void UnmarkDependents(const Node* node, std::set<Node*>* dependents);
-  bool AddSubTarget(const Node* node, const Node* dependent, std::string* err,
+  bool AddSubTarget(Node* node, Node* dependent, std::error_code& err,
                     std::set<Edge*>* dyndep_walk);
 
   /// Update plan with knowledge that the given node is up to date.
   /// If the node is a dyndep binding on any of its dependents, this
   /// loads dynamic dependencies from the node's path.
   /// Returns 'false' if loading dyndep info fails and 'true' otherwise.
-  bool NodeFinished(Node* node, std::string* err);
+  bool NodeFinished(Node* node, std::error_code& err);
 
   /// Enumerate possible steps we want for an edge.
   enum Want
@@ -109,7 +109,7 @@ private:
   };
 
   void EdgeWanted(const Edge* edge);
-  bool EdgeMaybeReady(std::map<Edge*, Want>::iterator want_e, std::string* err);
+  bool EdgeMaybeReady(std::map<Edge*, Want>::iterator want_e, std::error_code& err);
 
   /// Submits a ready edge as a candidate for execution.
   /// The edge may be delayed from running, for example if it's a member of a
@@ -186,24 +186,24 @@ struct Builder final {
   /// Clean up after interrupted commands by deleting output files.
   void Cleanup();
 
-  Node* AddTarget(std::filesystem::path const& name, std::string* err);
+  Node* AddTarget(const std::string& name, std::error_code& err);
 
   /// Add a target to the build, scanning dependencies.
   /// @return false on error.
-  bool AddTarget(Node* target, std::string* err);
+  bool AddTarget(Node* target, std::error_code& err);
 
   /// Returns true if the build targets are already up to date.
   bool AlreadyUpToDate() const;
 
   /// Run the build.  Returns false on error.
   /// It is an error to call this function when AlreadyUpToDate() is true.
-  bool Build(std::string* err);
+  bool Build(std::error_code& err);
 
-  bool StartEdge(Edge* edge, std::string* err);
+  bool StartEdge(Edge* edge, std::error_code& err);
 
   /// Update status ninja logs following a command termination.
   /// @return false if the build can not proceed further due to a fatal error.
-  bool FinishCommand(CommandRunner::Result* result, std::string* err);
+  bool FinishCommand(CommandRunner::Result* result, std::error_code& err);
 
   /// Used for tests.
   void SetBuildLog(BuildLog* log) {
@@ -211,7 +211,7 @@ struct Builder final {
   }
 
   /// Load the dyndep information provided by the given node.
-  bool LoadDyndeps(Node* node, std::string* err);
+  bool LoadDyndeps(Node* node, std::error_code& err);
 
   State* state_;
   const BuildConfig& config_;
@@ -222,7 +222,7 @@ struct Builder final {
  private:
   bool ExtractDeps(CommandRunner::Result* result, const std::string& deps_type,
                    const std::string& deps_prefix,
-                   std::vector<Node*>* deps_nodes, std::string* err);
+                   std::vector<Node*>* deps_nodes, std::error_code& err);
 
   DiskInterface* disk_interface_;
   DependencyScan scan_;

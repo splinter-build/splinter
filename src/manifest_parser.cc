@@ -33,7 +33,7 @@ ManifestParser::ManifestParser(State* state, FileReader* file_reader,
 }
 
 bool ManifestParser::Parse(std::filesystem::path const& filename, const std::string& input,
-                           std::string* err) {
+                           std::error_code& err) {
   lexer_.Start(filename, input);
 
   for (;;) {
@@ -93,7 +93,7 @@ bool ManifestParser::Parse(std::filesystem::path const& filename, const std::str
 }
 
 
-bool ManifestParser::ParsePool(std::string* err) {
+bool ManifestParser::ParsePool(std::error_code& err) {
   std::string name;
   if (!lexer_.ReadIdent(&name))
     return lexer_.Error("expected pool name", err);
@@ -130,7 +130,7 @@ bool ManifestParser::ParsePool(std::string* err) {
 }
 
 
-bool ManifestParser::ParseRule(std::string* err) {
+bool ManifestParser::ParseRule(std::error_code& err) {
   std::string name;
   if (!lexer_.ReadIdent(&name))
     return lexer_.Error("expected rule name", err);
@@ -171,7 +171,7 @@ bool ManifestParser::ParseRule(std::string* err) {
   return true;
 }
 
-bool ManifestParser::ParseLet(std::string* key, EvalString* value, std::string* err) {
+bool ManifestParser::ParseLet(std::string* key, EvalString* value, std::error_code& err) {
   if (!lexer_.ReadIdent(key))
     return lexer_.Error("expected variable name", err);
   if (!ExpectToken(Lexer::EQUALS, err))
@@ -181,7 +181,7 @@ bool ManifestParser::ParseLet(std::string* key, EvalString* value, std::string* 
   return true;
 }
 
-bool ManifestParser::ParseDefault(std::string* err) {
+bool ManifestParser::ParseDefault(std::error_code& err) {
   EvalString eval;
   if (!lexer_.ReadPath(&eval, err))
     return false;
@@ -191,15 +191,9 @@ bool ManifestParser::ParseDefault(std::string* err) {
   do
   {
     std::string path = eval.Evaluate(env_);
-    std::string path_err;
-    if(path.empty())
+    if( ! state_->AddDefault(path, err))
     {
-        return lexer_.Error("empty path", err);
-    }
-
-    if( ! state_->AddDefault(path, &path_err))
-    {
-      return lexer_.Error(path_err, err);
+      return false;
     }
 
     eval.Clear();
@@ -217,7 +211,7 @@ bool ManifestParser::ParseDefault(std::string* err) {
   return true;
 }
 
-bool ManifestParser::ParseEdge(std::string* err) {
+bool ManifestParser::ParseEdge(std::error_code& err) {
   std::vector<EvalString> ins, outs;
 
   {
@@ -239,7 +233,7 @@ bool ManifestParser::ParseEdge(std::string* err) {
     for (;;) {
       EvalString out;
       if (!lexer_.ReadPath(&out, err))
-        return false;
+        return !!err;
       if (out.empty())
         break;
       outs.push_back(out);
@@ -277,7 +271,7 @@ bool ManifestParser::ParseEdge(std::string* err) {
     for (;;) {
       EvalString in;
       if (!lexer_.ReadPath(&in, err))
-        return false;
+        return !!err;
       if (in.empty())
         break;
       ins.push_back(in);
@@ -408,7 +402,7 @@ bool ManifestParser::ParseEdge(std::string* err) {
   return true;
 }
 
-bool ManifestParser::ParseFileInclude(bool new_scope, std::string* err) {
+bool ManifestParser::ParseFileInclude(bool new_scope, std::error_code& err) {
   EvalString eval;
   if (!lexer_.ReadPath(&eval, err))
     return false;

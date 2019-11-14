@@ -20,7 +20,7 @@
 #include "util.h"
 #include "string_concat.h"
 
-bool Lexer::Error(const std::string& message, std::string* err) {
+bool Lexer::Error(const std::string& message, std::error_code& err) {
   // Compute line/column.
   int line = 1;
   const char* line_start = input_.data();
@@ -34,7 +34,7 @@ bool Lexer::Error(const std::string& message, std::string* err) {
 
   char buf[1024];
   snprintf(buf, sizeof(buf), "%s:%d: ", filename_.generic_string().c_str(), line);
-  *err = string_concat(buf, message, "\n");
+  err = std::make_error_code(std::errc::invalid_argument);
 
   // Add some context to the message.
   const int kTruncateColumn = 72;
@@ -47,14 +47,15 @@ bool Lexer::Error(const std::string& message, std::string* err) {
         break;
       }
     }
-    if(truncated)
-    {
-      string_append(*err, std::string_view(line_start, len), "...", "\n", std::string(col, ' '), "^ near here");
-    }
-    else
-    {
-      string_append(*err, std::string_view(line_start, len), "\n", std::string(col, ' '), "^ near here");
-    }
+    //if(truncated)
+    //{
+    //  string_append(*err, std::string_view(line_start, len), "...", "\n", std::string(col, ' '), "^ near here");
+    //}
+    //else
+    //{
+    //  string_append(*err, std::string_view(line_start, len), "\n", std::string(col, ' '), "^ near here");
+    //}
+    err = std::make_error_code(std::errc::invalid_argument);
   }
 
   return false;
@@ -204,7 +205,7 @@ bool Lexer::ReadIdent(std::string* out) {
   return true;
 }
 
-bool Lexer::ReadEvalString(EvalString* eval, bool path, std::string* err) {
+bool Lexer::ReadEvalString(EvalString* eval, bool path, std::error_code& err) {
   const char* p = ofs_;
   const char* q;
   const char* start;

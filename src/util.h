@@ -15,6 +15,12 @@
 #ifndef NINJA_UTIL_H_
 #define NINJA_UTIL_H_
 
+#include <string>
+#include <vector>
+#include <system_error>
+
+#include <stdio.h>
+
 #ifdef _WIN32
 #include "win32port.h"
 #else
@@ -89,7 +95,7 @@ void GetWin32EscapedString(const std::string& input, std::string* result);
 /// Read a file to a string (in text mode: with CRLF conversion
 /// on Windows).
 /// Returns -errno and fills in \a err on error.
-int ReadFile(std::filesystem::path const& path, std::string* contents, std::string* err);
+int ReadFile(std::filesystem::path const& path, std::string* contents, std::error_code& err);
 
 /// Mark a file descriptor to not be inherited on exec()s.
 void SetCloseOnExec(int fd);
@@ -118,7 +124,7 @@ double GetLoadAverage();
 std::string ElideMiddle(std::string_view str, size_t width);
 
 /// Truncates a file to the given size.
-bool Truncate(std::filesystem::path const& path, size_t size, std::string* err);
+bool Truncate(std::filesystem::path const& path, size_t size, std::error_code& err);
 
 #ifdef _MSC_VER
 #define snprintf _snprintf

@@ -32,17 +32,17 @@
 #include <assert.h>
 #include <stdio.h>
 
-bool Node::Stat(DiskInterface* disk_interface, std::string* err) {
+bool Node::Stat(DiskInterface* disk_interface, std::error_code& err) {
   return (mtime_ = disk_interface->Stat(path_, err)) != TimeStamp::max();
 }
 
-bool DependencyScan::RecomputeDirty(Node* node, std::string* err) {
+bool DependencyScan::RecomputeDirty(Node* node, std::error_code& err) {
   std::vector<Node*> stack;
   return RecomputeDirty(node, stack, err);
 }
 
 bool DependencyScan::RecomputeDirty(Node* node, std::vector<Node*>& stack,
-                                    std::string* err) {
+                                    std::error_code& err) {
   Edge* edge = node->in_edge();
   if( ! edge)
   {
@@ -131,13 +131,11 @@ bool DependencyScan::RecomputeDirty(Node* node, std::vector<Node*>& stack,
   {
     // This is our first encounter with this edge.  Load discovered deps.
     edge->deps_loaded_ = true;
-    if( ! dep_loader_.LoadDeps(edge, err))
-    {
-      if( ! err->empty())
+    if (!dep_loader_.LoadDeps(edge, err)) {
+      if( ! err)
       {
         return false;
       }
-
       // Failed to load dependency info: rebuild to regenerate it.
       // LoadDeps() did EXPLAIN() already, no need to do it here.
       edge->deps_missing_ = true;
@@ -217,8 +215,7 @@ bool DependencyScan::RecomputeDirty(Node* node, std::vector<Node*>& stack,
   return true;
 }
 
-bool DependencyScan::VerifyDAG(Node* node, std::vector<Node*>& stack, std::string* err)
-{
+bool DependencyScan::VerifyDAG(Node* node, std::vector<Node*>& stack, std::error_code& err) {
   Edge* edge = node->in_edge();
   assert(edge != nullptr);
 
@@ -245,25 +242,13 @@ bool DependencyScan::VerifyDAG(Node* node, std::vector<Node*>& stack, std::strin
   *start = node;
 
   // Construct the error message rejecting the cycle.
-  *err = "dependency cycle: ";
-  for(std::vector<Node*>::const_iterator i = start; i != stack.end(); ++i)
-  {
-    string_append(*err, (*i)->path().generic_string(), " -> ");
-  }
-  err->append((*start)->path().generic_string());
-
-  if((start + 1) == stack.end() && edge->maybe_phonycycle_diagnostic())
-  {
-    // The manifest parser would have filtered out the self-referencing
-    // input if it were not configured to allow the error.
-    err->append(" [-w phonycycle=err]");
-  }
+  err = std::make_error_code(std::errc::invalid_argument);
 
   return false;
 }
 
 bool DependencyScan::RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,
-                                           bool* outputs_dirty, std::string* err) {
+                                           bool* outputs_dirty, std::error_code& err) {
   std::string command = edge->EvaluateCommand(/*incl_rsp_file=*/true);
   for (const auto & item : edge->outputs_)
   {
@@ -360,12 +345,12 @@ bool DependencyScan::RecomputeOutputDirty(const Edge* edge,
   return false;
 }
 
-bool DependencyScan::LoadDyndeps(Node* node, std::string* err) const {
+bool DependencyScan::LoadDyndeps(Node* node, std::error_code& err) const {
   return dyndep_loader_.LoadDyndeps(node, err);
 }
 
 bool DependencyScan::LoadDyndeps(Node* node, DyndepFile* ddf,
-                                 std::string* err) const {
+                                 std::error_code& err) const {
   return dyndep_loader_.LoadDyndeps(node, ddf, err);
 }
 
@@ -560,7 +545,7 @@ void Node::Dump(const char* prefix) const {
   }
 }
 
-bool ImplicitDepLoader::LoadDeps(Edge* edge, std::string* err) {
+bool ImplicitDepLoader::LoadDeps(Edge* edge, std::error_code& err) {
   std::string deps_type = edge->GetBinding("deps");
   if (!deps_type.empty())
     return LoadDepsFromLog(edge, err);
@@ -583,42 +568,39 @@ struct matches {
   std::vector<std::string_view>::iterator i_;
 };
 
-bool ImplicitDepLoader::LoadDepFile(Edge*                        edge,
-                                    std::filesystem::path const& path,
-                                    std::string*                 err)
-{
+bool ImplicitDepLoader::LoadDepFile(Edge* edge, std::filesystem::path const& path,
+                                    std::error_code& err) {
   METRIC_RECORD("depfile load");
   // Read depfile content.  Treat a missing depfile as empty.
   std::string content;
-  switch (disk_interface_->ReadFile(path, &content, err)) {
-  case DiskInterface::Okay:
-    break;
-  case DiskInterface::NotFound:
-    err->clear();
-    break;
-  case DiskInterface::OtherError:
-    *err = string_concat("loading '", path.generic_string(), "': ", *err);
-    return false;
+  switch (disk_interface_->ReadFile(path, &content, err))
+  {
+    case DiskInterface::Okay:
+      break;
+    case DiskInterface::NotFound:
+      err = {};
+      break;
+    case DiskInterface::OtherError:
+      err = std::make_error_code(std::errc::invalid_argument);
+      return false;
   }
   // On a missing depfile: return false and empty *err.
-  if (content.empty()) {
+  if(content.empty())
+  {
     EXPLAIN("depfile '%s' is missing", path.generic_string().c_str());
     return false;
   }
 
-  DepfileParser depfile(depfile_parser_options_
+  DepfileParser depfile(  depfile_parser_options_
                         ? *depfile_parser_options_
                         : DepfileParserOptions());
-  std::string depfile_err;
-  if (!depfile.Parse(&content, &depfile_err)) {
-    *err = string_concat(path.generic_string(), ": ", depfile_err);
+  std::error_code depfile_err;
+  if( ! depfile.Parse(&content, err) || err)
+  {
     return false;
   }
 
-  if (depfile.outs_.empty()) {
-    *err = string_concat(path.generic_string(), ": no outputs declared");
-    return false;
-  }
+  size_t size1 = depfile.outs_.size();
 
   // Check that this depfile matches the edge's output, if not return false to
   // mark the edge as dirty.
@@ -634,7 +616,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge*                        edge,
        o != depfile.outs_.end(); ++o) {
     matches m(o);
     if (std::find_if(edge->outputs_.begin(), edge->outputs_.end(), m) == edge->outputs_.end()) {
-      *err = string_concat(path.generic_string(), ": depfile mentions '", *o, "' as an output, but no such output was declared");
+      err = std::make_error_code(std::errc::invalid_argument);
       return false;
     }
   }
@@ -656,7 +638,7 @@ bool ImplicitDepLoader::LoadDepFile(Edge*                        edge,
   return true;
 }
 
-bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, std::string* err) {
+bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, std::error_code& err) {
   // NOTE: deps are only supported for single-target edges.
   Node* output = edge->outputs_[0];
   DepsLog::Deps* deps = deps_log_ ? deps_log_->GetDeps(output) : nullptr;

@@ -35,7 +35,7 @@ struct FileReader {
   /// On error, return another Status and fill |err|.
   virtual Status ReadFile(std::filesystem::path const& path,
                           std::string* contents,
-                          std::string* err) = 0;
+                          std::error_code& err) = 0;
 
 protected:
   ~FileReader() = default;
@@ -48,7 +48,7 @@ protected:
 struct DiskInterface: public FileReader {
   /// stat() a file, returning the mtime, or TimeStamp::min() if missing
   ///  and TimeStamp::max() on other errors.
-  virtual TimeStamp Stat(std::filesystem::path const& path, std::string* err) const = 0;
+  virtual TimeStamp Stat(std::filesystem::path const& path, std::error_code& err) const = 0;
 
   /// Create a directory, returning false on failure.
   virtual bool MakeDir(std::filesystem::path const& path) = 0;
@@ -77,10 +77,10 @@ struct RealDiskInterface final : public DiskInterface {
   RealDiskInterface() = default;
   ~RealDiskInterface() = default;
 
-  TimeStamp Stat(std::filesystem::path const& path, std::string* err) const override final;
+  TimeStamp Stat(std::filesystem::path const& path, std::error_code& err) const override final;
   bool MakeDir(std::filesystem::path const& path) override final;
   bool WriteFile(std::filesystem::path const& path, std::string_view contents) override final;
-  Status ReadFile(std::filesystem::path const& path, std::string* contents, std::string* err) override final;
+  Status ReadFile(std::filesystem::path const& path, std::string* contents, std::error_code& err) override final;
   int RemoveFile(std::filesystem::path const& path) override final;
   bool MakeDirs(std::filesystem::path const& path) override final;
 

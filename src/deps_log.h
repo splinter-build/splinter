@@ -70,7 +70,7 @@ struct DepsLog final {
   ~DepsLog();
 
   // Writing (build-time) interface.
-  bool OpenForWrite(const std::string& path, std::string* err);
+  bool OpenForWrite(const std::string& path, std::error_code& err);
   bool RecordDeps(Node* node, TimeStamp mtime, const std::vector<Node*>& nodes);
   bool RecordDeps(Node* node, TimeStamp mtime, int node_count, Node** nodes);
   void Close();
@@ -84,11 +84,11 @@ struct DepsLog final {
     int node_count;
     Node** nodes;
   };
-  LoadStatus Load(std::filesystem::path const& path, State* state, std::string* err);
+  LoadStatus Load(std::filesystem::path const& path, State* state, std::error_code& err);
   Deps* GetDeps(Node* node);
 
   /// Rewrite the known log entries, throwing away old data.
-  bool Recompact(const std::string& path, std::string* err);
+  bool Recompact(const std::string& path, std::error_code& err);
 
   /// Returns if the deps entry for a node is still reachable from the manifest.
   ///

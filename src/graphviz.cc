@@ -40,9 +40,9 @@ void GraphViz::AddTarget(Node* node) {
   visited_edges_.insert(edge);
 
   if (edge->dyndep_ && edge->dyndep_->dyndep_pending()) {
-    std::string err;
-    if (!dyndep_loader_.LoadDyndeps(edge->dyndep_, &err)) {
-      Warning("%s\n", err.c_str());
+    std::error_code err;
+    if (!dyndep_loader_.LoadDyndeps(edge->dyndep_, err)) {
+      Warning("%s\n", err.message().c_str());
     }
   }
 

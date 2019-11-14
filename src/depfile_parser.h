@@ -19,9 +19,10 @@
 #include <vector>
 #include <cstring>
 #include <string_view>
+#include <system_error>
 
 struct DepfileParserOptions {
-  DepfileParserOptions() {}
+  DepfileParserOptions() = default;
 };
 
 /// Parser for the dependency information emitted by gcc's -M flags.
@@ -32,11 +33,15 @@ struct DepfileParser {
   /// Parse an input file.  Input must be NUL-terminated.
   /// Warning: may mutate the content in-place and parsed string_views are
   /// pointers within it.
-  bool Parse(std::string* content, std::string* err);
+  bool Parse(std::string* content, std::error_code& err);
 
   std::vector<std::string_view> outs_;
   std::vector<std::string_view> ins_;
   DepfileParserOptions options_;
 };
+
+inline DepfileParser::DepfileParser(DepfileParserOptions options)
+ : options_(std::move(options))
+{ }
 
 #endif // NINJA_DEPFILE_PARSER_H_

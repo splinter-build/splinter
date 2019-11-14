@@ -18,15 +18,16 @@
 #include "disk_interface.h"
 #include "string_concat.h"
 
-bool Parser::Load(std::filesystem::path const& filename, std::string* err, Lexer* parent) {
+bool Parser::Load(std::filesystem::path const& filename, std::error_code& err, Lexer* parent) {
   METRIC_RECORD(".ninja parse");
   std::string contents;
-  std::string read_err;
-  if (file_reader_->ReadFile(filename, &contents, &read_err) !=
-      FileReader::Okay) {
-    *err = string_concat("loading '", filename.generic_string(), "': ", read_err);
-    if (parent)
-      parent->Error(std::string(*err), err);
+  if(auto outcome = file_reader_->ReadFile(filename, &contents, err);
+     (outcome != FileReader::Okay) || err)
+  {
+    if(parent)
+    {
+      parent->Error(err.message(), err);
+    }
     return false;
   }
 
@@ -40,7 +41,7 @@ bool Parser::Load(std::filesystem::path const& filename, std::string* err, Lexer
   return Parse(filename, contents, err);
 }
 
-bool Parser::ExpectToken(Lexer::Token expected, std::string* err) {
+bool Parser::ExpectToken(Lexer::Token expected, std::error_code& err) {
   Lexer::Token token = lexer_.ReadToken();
   if (token != expected) {
     std::string message = string_concat("expected ", Lexer::TokenName(expected),

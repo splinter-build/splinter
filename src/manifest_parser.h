@@ -42,24 +42,24 @@ struct ManifestParser final : public Parser {
                  ManifestParserOptions options = ManifestParserOptions());
 
   /// Parse a text string of input.  Used by tests.
-  bool ParseTest(const std::string& input, std::string* err) {
+  bool ParseTest(const std::string& input, std::error_code& err) {
     quiet_ = true;
     return Parse("input", input, err);
   }
 
 private:
   /// Parse a file, given its contents as a std::string.
-  bool Parse(std::filesystem::path const& filename, const std::string& input, std::string* err) override final;
+  bool Parse(std::filesystem::path const& filename, const std::string& input, std::error_code& err) override final;
 
   /// Parse various statement types.
-  bool ParsePool(std::string* err);
-  bool ParseRule(std::string* err);
-  bool ParseLet(std::string* key, EvalString* val, std::string* err);
-  bool ParseEdge(std::string* err);
-  bool ParseDefault(std::string* err);
+  bool ParsePool(std::error_code& err);
+  bool ParseRule(std::error_code& err);
+  bool ParseLet(std::string* key, EvalString* val, std::error_code& err);
+  bool ParseEdge(std::error_code& err);
+  bool ParseDefault(std::error_code& err);
 
   /// Parse either a 'subninja' or 'include' line.
-  bool ParseFileInclude(bool new_scope, std::string* err);
+  bool ParseFileInclude(bool new_scope, std::error_code& err);
 
   BindingEnv* env_;
   ManifestParserOptions options_;

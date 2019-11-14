@@ -26,18 +26,18 @@ struct DyndepParser final : public Parser {
   DyndepParser(State* state, FileReader* file_reader,
                DyndepFile* dyndep_file);
 
-  /// Parse a text std::string of input.  Used by tests.
-  bool ParseTest(const std::string& input, std::string* err) {
+  /// Parse a text string of input.  Used by tests.
+  bool ParseTest(const std::string& input, std::error_code& err) {
     return Parse("input", input, err);
   }
 
 private:
   /// Parse a file, given its contents as a std::string.
-  bool Parse(std::filesystem::path const& filename, const std::string& input, std::string* err) override final;
+  bool Parse(std::filesystem::path const& filename, const std::string& input, std::error_code& err) override final;
 
-  bool ParseDyndepVersion(std::string* err);
-  bool ParseLet(std::string* key, EvalString* val, std::string* err);
-  bool ParseEdge(std::string* err);
+  bool ParseDyndepVersion(std::error_code& err);
+  bool ParseLet(std::string* key, EvalString* val, std::error_code& err);
+  bool ParseEdge(std::error_code& err);
 
   DyndepFile* dyndep_file_;
   BindingEnv env_;

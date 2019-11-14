@@ -46,14 +46,13 @@ struct BuildLog final {
   BuildLog() = default;
   ~BuildLog();
 
-  bool OpenForWrite(const std::string& path, const BuildLogUser& user,
-                    std::string* err);
+  bool OpenForWrite(const std::string& path, const BuildLogUser& user, std::error_code& err);
   bool RecordCommand(Edge* edge, int start_time, int end_time,
                      TimeStamp mtime = TimeStamp::min());
   void Close();
 
   /// Load the on-disk log.
-  LoadStatus Load(std::filesystem::path const& path, std::string* err);
+  LoadStatus Load(std::filesystem::path const& path, std::error_code& err);
 
   struct LogEntry final {
     std::string output;
@@ -83,12 +82,11 @@ struct BuildLog final {
   bool WriteEntry(FILE* f, const LogEntry& entry);
 
   /// Rewrite the known log entries, throwing away old data.
-  bool Recompact(const std::string& path, const BuildLogUser& user,
-                 std::string* err);
+  bool Recompact(const std::string& path, const BuildLogUser& user, std::error_code& err);
 
   /// Restat all outputs in the log
   bool Restat(std::filesystem::path const& path, const DiskInterface& disk_interface,
-              int output_count, char** outputs, std::string* err);
+              int output_count, char** outputs, std::error_code& err);
 
   using Entries = std::unordered_map<std::filesystem::path, LogEntry*>;
 

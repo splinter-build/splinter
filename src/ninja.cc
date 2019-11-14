@@ -110,11 +110,11 @@ struct NinjaMain final : public BuildLogUser {
 
   /// Get the Node for a given command-line path, handling features like
   /// spell correction.
-  Node* CollectTarget(std::filesystem::path const& cpath, std::string* err);
+  Node* CollectTarget(std::filesystem::path path, std::error_code& err);
 
   /// CollectTarget for all command-line arguments, filling in \a targets.
   bool CollectTargetsFromArgs(int argc, char* argv[],
-                              std::vector<Node*>* targets, std::string* err);
+                              std::vector<Node*>* targets, std::error_code& err);
 
   // The various subcommands, run via "-t XXX".
   int ToolGraph(const Options* options, int argc, char* argv[]);
@@ -147,7 +147,7 @@ struct NinjaMain final : public BuildLogUser {
   /// Rebuild the manifest, if necessary.
   /// Fills in \a err on error.
   /// @return true if the manifest was rebuilt.
-  bool RebuildManifest(std::filesystem::path const& input_file, std::string* err);
+  bool RebuildManifest(std::filesystem::path const& input_file, std::error_code& err);
 
   /// Build the targets listed on the command line.
   /// @return an exit code.
@@ -172,11 +172,11 @@ struct NinjaMain final : public BuildLogUser {
     // which seems good enough for this corner case.)
     // Do keep entries around for files which still exist on disk, for
     // generators that want to use this information.
-    std::string err;
-    TimeStamp mtime = disk_interface_.Stat(p, &err);
+    std::error_code err;
+    TimeStamp mtime = disk_interface_.Stat(p, err);
     if(mtime == TimeStamp::max())
     {
-      Error("%s", err.c_str());  // Log and ignore Stat() errors.
+      Error("%s", err.message().c_str());  // Log and ignore Stat() errors.
     }
     return mtime == TimeStamp::min();;
   }
@@ -248,15 +248,9 @@ int GuessParallelism() {
 
 /// Rebuild the build manifest, if necessary.
 /// Returns true if the manifest was rebuilt.
-bool NinjaMain::RebuildManifest(std::filesystem::path const& input_file, std::string* err)
+bool NinjaMain::RebuildManifest(std::filesystem::path const& input_file, std::error_code& err)
 {
-  std::error_code ec;
-  std::filesystem::path path = std::filesystem::canonical(input_file, ec);
-  if(ec)
-  {
-    return false;
-  }
-  Node* node = state_.LookupNode(path);
+  Node* node = state_.LookupNode(input_file);
   if (!node)
     return false;
 
@@ -282,15 +276,8 @@ bool NinjaMain::RebuildManifest(std::filesystem::path const& input_file, std::st
   return true;
 }
 
-Node* NinjaMain::CollectTarget(std::filesystem::path const& cpath, std::string* err)
+Node* NinjaMain::CollectTarget(std::filesystem::path path, std::error_code& err)
 {
-  std::error_code ec;
-  std::filesystem::path path = std::filesystem::canonical(cpath, ec);
-  if(ec)
-  {
-    return nullptr;
-  }
-
   // Special syntax: "foo.cc^" means "the first output of foo.cc".
   bool first_dependent = false;
   {
@@ -306,7 +293,7 @@ Node* NinjaMain::CollectTarget(std::filesystem::path const& cpath, std::string* 
   if (node) {
     if (first_dependent) {
       if (node->out_edges().empty()) {
-        *err = string_concat("'", path.generic_string(), "' has no out edge");
+        err = std::make_error_code(std::errc::invalid_argument);
         return nullptr;
       }
       Edge* edge = node->out_edges()[0];
@@ -320,32 +307,32 @@ Node* NinjaMain::CollectTarget(std::filesystem::path const& cpath, std::string* 
   }
   else
   {
-    *err = string_concat("unknown target '", path.generic_string(), "'");
+    err = std::make_error_code(std::errc::invalid_argument);
     if(path == "clean")
     {
-      err->append(", did you mean 'ninja -t clean'?");
+//      err->append(", did you mean 'ninja -t clean'?");
     }
     else if(path == "help")
     {
-      err->append(", did you mean 'ninja -h'?");
+//      err->append(", did you mean 'ninja -h'?");
     }
     else
     {
       Node* suggestion = state_.SpellcheckNode(path);
       if(suggestion)
       {
-        string_append(*err, ", did you mean '", suggestion->path().generic_string(), "'?");
+        err = std::make_error_code(std::errc::invalid_argument);
       }
     }
-    return nullptr;
   }
+  return nullptr;
 }
 
 bool NinjaMain::CollectTargetsFromArgs(int argc, char* argv[],
-                                       std::vector<Node*>* targets, std::string* err) {
+                                       std::vector<Node*>* targets, std::error_code& err) {
   if (argc == 0) {
     *targets = state_.DefaultNodes(err);
-    return err->empty();
+    return ! err;
   }
 
   for (int i = 0; i < argc; ++i) {
@@ -359,9 +346,9 @@ bool NinjaMain::CollectTargetsFromArgs(int argc, char* argv[],
 
 int NinjaMain::ToolGraph(const Options* options, int argc, char* argv[]) {
   std::vector<Node*> nodes;
-  std::string err;
-  if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
-    Error("%s", err.c_str());
+  std::error_code err;
+  if (!CollectTargetsFromArgs(argc, argv, &nodes, err)) {
+    Error("%s", err.message().c_str());
     return 1;
   }
 
@@ -385,18 +372,18 @@ int NinjaMain::ToolQuery(const Options* options, int argc, char* argv[]) {
   DyndepLoader dyndep_loader(&state_, &disk_interface_);
 
   for (int i = 0; i < argc; ++i) {
-    std::string err;
-    Node* node = CollectTarget(argv[i], &err);
+    std::error_code err;
+    Node* node = CollectTarget(argv[i], err);
     if (!node) {
-      Error("%s", err.c_str());
+      Error("%s", err.message().c_str());
       return 1;
     }
 
     printf("%s:\n", node->path().generic_string().c_str());
     if (Edge* edge = node->in_edge()) {
       if (edge->dyndep_ && edge->dyndep_->dyndep_pending()) {
-        if (!dyndep_loader.LoadDyndeps(edge->dyndep_, &err)) {
-          Warning("%s\n", err.c_str());
+        if (!dyndep_loader.LoadDyndeps(edge->dyndep_, err)) {
+          Warning("%s\n", err.message().c_str());
         }
       }
       printf("  input: %s\n", edge->rule_->name().c_str());
@@ -528,9 +515,9 @@ int NinjaMain::ToolDeps(const Options* options, int argc, char** argv) {
       }
     }
   } else {
-    std::string err;
-    if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
-      Error("%s", err.c_str());
+    std::error_code err;
+    if (!CollectTargetsFromArgs(argc, argv, &nodes, err)) {
+      Error("%s", err.message().c_str());
       return 1;
     }
   }
@@ -544,10 +531,10 @@ int NinjaMain::ToolDeps(const Options* options, int argc, char** argv) {
       continue;
     }
 
-    std::string err;
-    TimeStamp mtime = disk_interface.Stat(node->path(), &err);
+    std::error_code err;
+    TimeStamp mtime = disk_interface.Stat(node->path(), err);
     if (mtime == TimeStamp::max())
-      Error("%s", err.c_str());  // Log and ignore Stat() errors;
+      Error("%s", err.message().c_str());  // Log and ignore Stat() errors;
     printf("%s: #deps %d, deps mtime %" PRId64 " (%s)\n",
            node->path().generic_string().c_str(),
            deps->node_count,
@@ -591,12 +578,15 @@ int NinjaMain::ToolTargets(const Options* options, int argc, char* argv[]) {
     }
   }
 
-  std::string err;
-  std::vector<Node*> root_nodes = state_.RootNodes(&err);
-  if (err.empty()) {
+  std::error_code err;
+  std::vector<Node*> root_nodes = state_.RootNodes(err);
+  if( ! err)
+  {
     return ToolTargetsList(root_nodes, depth, 0);
-  } else {
-    Error("%s", err.c_str());
+  }
+  else
+  {
+    Error("%s", err.message().c_str());
     return 1;
   }
 }
@@ -695,9 +685,9 @@ int NinjaMain::ToolCommands(const Options* options, int argc, char* argv[]) {
   argc -= optind;
 
   std::vector<Node*> nodes;
-  std::string err;
-  if (!CollectTargetsFromArgs(argc, argv, &nodes, &err)) {
-    Error("%s", err.c_str());
+  std::error_code err;
+  if (!CollectTargetsFromArgs(argc, argv, &nodes, err)) {
+    Error("%s", err.message().c_str());
     return 1;
   }
 
@@ -917,35 +907,40 @@ int NinjaMain::ToolRestat(const Options* options, int argc, char* argv[]) {
   if (!EnsureBuildDirExists())
     return 1;
 
-  std::filesystem::path log_path =  build_dir_.empty()
-                                  ? std::filesystem::path(".ninja_log")
-                                  : build_dir_ / ".ninja_log";
+  std::filesystem::path log_path =   build_dir_.empty()
+                                   ? std::filesystem::path(".ninja_log")
+                                   : build_dir_ / ".ninja_log";
 
-  std::string err;
-  const LoadStatus status = build_log_.Load(log_path, &err);
-  if (status == LOAD_ERROR) {
-    Error("loading build log %s: %s", log_path.c_str(), err.c_str());
+  std::error_code err;
+  const LoadStatus status = build_log_.Load(log_path, err);
+  if(status == LOAD_ERROR)
+  {
+    Error("loading build log %s: %s", log_path.c_str(), err.message().c_str());
     return EXIT_FAILURE;
   }
-  if (status == LOAD_NOT_FOUND) {
+  else if (status == LOAD_NOT_FOUND)
+  {
     // Nothing to restat, ignore this
     return EXIT_SUCCESS;
   }
-  if (!err.empty()) {
+  else if(err)
+  {
     // Hack: Load() can return a warning via err by returning LOAD_SUCCESS.
-    Warning("%s", err.c_str());
+    Warning("%s", err.message().c_str());
     err.clear();
   }
 
-  bool success = build_log_.Restat(log_path, disk_interface_, argc, argv, &err);
-  if (!success) {
-    Error("failed recompaction: %s", err.c_str());
+  bool success = build_log_.Restat(log_path, disk_interface_, argc, argv, err);
+  if( ! success)
+  {
+    Error("failed recompaction: %s", err.message().c_str());
     return EXIT_FAILURE;
   }
-
-  if (!config_.dry_run) {
-    if (!build_log_.OpenForWrite(log_path.generic_string(), *this, &err)) {
-      Error("opening build log: %s", err.c_str());
+  else if( ! config_.dry_run)
+  {
+    if( ! build_log_.OpenForWrite(log_path.generic_string(), *this, err))
+    {
+      Error("opening build log: %s", err.message().c_str());
       return EXIT_FAILURE;
     }
   }
@@ -1131,31 +1126,28 @@ bool NinjaMain::OpenBuildLog(bool recompact_only) {
                                    ? std::filesystem::path(".ninja_log")
                                    : build_dir_ / ".ninja_log";
 
-  std::string err;
-  const LoadStatus status = build_log_.Load(log_path, &err);
-  if (status == LOAD_ERROR) {
-    Error("loading build log %s: %s", log_path.c_str(), err.c_str());
+  std::error_code err;
+  if (!build_log_.Load(log_path, err)) {
+    Error("loading build log %s: %s", log_path.c_str(), err.message().c_str());
     return false;
   }
-  if (!err.empty()) {
-    // Hack: Load() can return a warning via err by returning LOAD_SUCCESS.
-    Warning("%s", err.c_str());
+  if(err)
+  {
+    // Hack: Load() can return a warning via err by returning true.
+    Warning("%s", err.message().c_str());
     err.clear();
   }
 
   if (recompact_only) {
-    if (status == LOAD_NOT_FOUND) {
-      return true;
-    }
-    bool success = build_log_.Recompact(log_path.generic_string(), *this, &err);
+    bool success = build_log_.Recompact(log_path, *this, err);
     if (!success)
-      Error("failed recompaction: %s", err.c_str());
+      Error("failed recompaction: %s", err.message().c_str());
     return success;
   }
 
   if (!config_.dry_run) {
-    if (!build_log_.OpenForWrite(log_path.generic_string(), *this, &err)) {
-      Error("opening build log: %s", err.c_str());
+    if (!build_log_.OpenForWrite(log_path, *this, err)) {
+      Error("opening build log: %s", err.message().c_str());
       return false;
     }
   }
@@ -1170,31 +1162,28 @@ bool NinjaMain::OpenDepsLog(bool recompact_only) {
                                ? std::filesystem::path(".ninja_deps")
                                : build_dir_ / ".ninja_deps";
 
-  std::string err;
-  const LoadStatus status = deps_log_.Load(path, &state_, &err);
-  if (status == LOAD_ERROR) {
-    Error("loading deps log %s: %s", path.c_str(), err.c_str());
+  std::error_code err;
+  if (!deps_log_.Load(path, &state_, err)) {
+    Error("loading deps log %s: %s", path.c_str(), err.message().c_str());
     return false;
   }
-  if (!err.empty()) {
-    // Hack: Load() can return a warning via err by returning LOAD_SUCCESS.
-    Warning("%s", err.c_str());
+  if(err)
+  {
+    // Hack: Load() can return a warning via err by returning true.
+    Warning("%s", err.message().c_str());
     err.clear();
   }
 
   if (recompact_only) {
-    if (status == LOAD_NOT_FOUND) {
-      return true;
-    }
-    bool success = deps_log_.Recompact(path.generic_string(), &err);
+    bool success = deps_log_.Recompact(path, err);
     if (!success)
-      Error("failed recompaction: %s", err.c_str());
+      Error("failed recompaction: %s", err.message().c_str());
     return success;
   }
 
   if (!config_.dry_run) {
-    if (!deps_log_.OpenForWrite(path.generic_string(), &err)) {
-      Error("opening deps log: %s", err.c_str());
+    if (!deps_log_.OpenForWrite(path, err)) {
+      Error("opening deps log: %s", err.message().c_str());
       return false;
     }
   }
@@ -1225,10 +1214,10 @@ bool NinjaMain::EnsureBuildDirExists() {
 }
 
 int NinjaMain::RunBuild(int argc, char** argv) {
-  std::string err;
+  std::error_code err;
   std::vector<Node*> targets;
-  if (!CollectTargetsFromArgs(argc, argv, &targets, &err)) {
-    Error("%s", err.c_str());
+  if (!CollectTargetsFromArgs(argc, argv, &targets, err)) {
+    Error("%s", err.message().c_str());
     return 1;
   }
 
@@ -1236,9 +1225,10 @@ int NinjaMain::RunBuild(int argc, char** argv) {
 
   Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_);
   for (size_t i = 0; i < targets.size(); ++i) {
-    if (!builder.AddTarget(targets[i], &err)) {
-      if (!err.empty()) {
-        Error("%s", err.c_str());
+    if (!builder.AddTarget(targets[i], err)) {
+      if(err)
+      {
+        Error("%s", err.message().c_str());
         return 1;
       } else {
         // Added a target that is already up-to-date; not really
@@ -1255,9 +1245,9 @@ int NinjaMain::RunBuild(int argc, char** argv) {
     return 0;
   }
 
-  if (!builder.Build(&err)) {
-    printf("ninja: build stopped: %s.\n", err.c_str());
-    if (err.find("interrupted by user") != std::string::npos) {
+  if (!builder.Build(err)) {
+    printf("ninja: build stopped: %s.\n", err.message().c_str());
+    if (err.message().find("interrupted by user") != std::string::npos) {
       return 2;
     }
     return 1;
@@ -1433,9 +1423,9 @@ int ReadFlags(int* argc, char*** argv,
       parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
     }
     ManifestParser parser(&ninja.state_, &ninja.disk_interface_, parser_opts);
-    std::string err;
-    if (!parser.Load(options.input_file, &err)) {
-      Error("%s", err.c_str());
+    std::error_code err;
+    if (!parser.Load(options.input_file, err)) {
+      Error("%s", err.message().c_str());
       exit(1);
     }
 
@@ -1452,15 +1442,17 @@ int ReadFlags(int* argc, char*** argv,
       exit((ninja.*options.tool->func)(&options, argc, argv));
 
     // Attempt to rebuild the manifest before building anything else
-    if (ninja.RebuildManifest(options.input_file, &err)) {
+    if (ninja.RebuildManifest(options.input_file, err)) {
       // In dry_run mode the regeneration will succeed without changing the
       // manifest forever. Better to return immediately.
       if (config.dry_run)
         exit(0);
       // Start the build over with the new manifest.
       continue;
-    } else if (!err.empty()) {
-      Error("rebuilding '%s': %s", options.input_file.c_str(), err.c_str());
+    }
+    else if(err)
+    {
+      Error("rebuilding '%s': %s", options.input_file, err.message().c_str());
       exit(1);
     }
 

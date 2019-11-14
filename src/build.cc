@@ -320,16 +320,12 @@ void Plan::Reset() {
   want_.clear();
 }
 
-bool Plan::AddTarget(const Node* node, std::string* err)
-{
+bool Plan::AddTarget(Node* node, std::error_code& err) {
   return AddSubTarget(node, nullptr, err, nullptr);
 }
 
-bool Plan::AddSubTarget(const Node*      node,
-                        const Node*      dependent,
-                        std::string*     err,
-                        std::set<Edge*>* dyndep_walk)
-{
+bool Plan::AddSubTarget(Node* node, Node* dependent, std::error_code& err,
+                        std::set<Edge*>* dyndep_walk) {
   Edge* edge = node->in_edge();
   if( ! edge) // Leaf node.
   {
@@ -337,11 +333,13 @@ bool Plan::AddSubTarget(const Node*      node,
     {
       if(dependent)
       {
-        *err = string_concat("'", node->path().generic_string(), "', needed by '", dependent->path().generic_string(), "', missing and no known rule to make it");
+//      *err = string_concat("'", node->path().generic_string(), "', needed by '", dependent->path().generic_string(), "', missing and no known rule to make it");
+        err = std::make_error_code(std::errc::invalid_argument);
       }
       else
       {
-        *err = string_concat("'", node->path().generic_string(), "'", " missing and no known rule to make it");
+//      *err = string_concat("'", node->path().generic_string(), "'", " missing and no known rule to make it");
+        err = std::make_error_code(std::errc::invalid_argument);
       }
     }
     return false;
@@ -386,8 +384,7 @@ bool Plan::AddSubTarget(const Node*      node,
 
   for(auto const& item : edge->inputs_)
   {
-    if(   ! AddSubTarget(item, node, err, dyndep_walk)
-       && ! err->empty())
+    if (!AddSubTarget(item, node, err, dyndep_walk) && err)
     {
         return false;
     }
@@ -438,7 +435,7 @@ void Plan::ScheduleWork(std::map<Edge*, Want>::iterator want_e) {
   }
 }
 
-bool Plan::EdgeFinished(Edge* edge, EdgeResult result, std::string* err) {
+bool Plan::EdgeFinished(Edge* edge, EdgeResult result, std::error_code& err) {
   std::map<Edge*, Want>::iterator e = want_.find(edge);
   assert(e != want_.end());
   bool directly_wanted = e->second != kWantNothing;
@@ -468,7 +465,7 @@ bool Plan::EdgeFinished(Edge* edge, EdgeResult result, std::string* err) {
   return true;
 }
 
-bool Plan::NodeFinished(Node* node, std::string* err) {
+bool Plan::NodeFinished(Node* node, std::error_code& err) {
   // If this node provides dyndep info, load it now.
   if (node->dyndep_pending()) {
     assert(builder_ && "dyndep requires Plan to have a Builder");
@@ -493,7 +490,7 @@ bool Plan::NodeFinished(Node* node, std::string* err) {
   return true;
 }
 
-bool Plan::EdgeMaybeReady(std::map<Edge*, Want>::iterator want_e, std::string* err) {
+bool Plan::EdgeMaybeReady(std::map<Edge*, Want>::iterator want_e, std::error_code& err) {
   if(Edge* edge = want_e->first;
      edge->AllInputsReady())
   {
@@ -511,7 +508,7 @@ bool Plan::EdgeMaybeReady(std::map<Edge*, Want>::iterator want_e, std::string* e
   return true;
 }
 
-bool Plan::CleanNode(DependencyScan* scan, Node* node, std::string* err) {
+bool Plan::CleanNode(DependencyScan* scan, Node* node, std::error_code& err) {
   node->set_dirty(false);
 
   for (const auto & item : node->out_edges())
@@ -562,8 +559,8 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, std::string* err) {
   return true;
 }
 
-bool Plan::DyndepsLoaded(DependencyScan* scan, const Node* node,
-                         const DyndepFile& ddf, std::string* err) {
+bool Plan::DyndepsLoaded(DependencyScan* scan, Node* node,
+                         const DyndepFile& ddf, std::error_code& err) {
   // Recompute the dirty state of all our direct and indirect dependents now
   // that our dyndep information has been loaded.
   if (!RefreshDyndepDependents(scan, node, err))
@@ -596,11 +593,14 @@ bool Plan::DyndepsLoaded(DependencyScan* scan, const Node* node,
 
   // Walk dyndep-discovered portion of the graph to add it to the build plan.
   std::set<Edge*> dyndep_walk;
-  for (auto const& oe : dyndep_roots) {
-    for (auto const& item : oe->second.implicit_inputs_) {
-      if (!AddSubTarget(item, oe->first->outputs_[0], err, &dyndep_walk) &&
-          !err->empty())
+  for(auto const& oe : dyndep_roots)
+  {
+    for(auto const& item : oe->second.implicit_inputs_)
+    {
+      if(!AddSubTarget(item, oe->first->outputs_[0], err, &dyndep_walk) && err)
+      {
         return false;
+      }
     }
   }
 
@@ -627,8 +627,8 @@ bool Plan::DyndepsLoaded(DependencyScan* scan, const Node* node,
   return true;
 }
 
-bool Plan::RefreshDyndepDependents(DependencyScan* scan, const Node* node,
-                                   std::string* err) {
+bool Plan::RefreshDyndepDependents(DependencyScan* scan, Node* node,
+                                   std::error_code& err) {
   // Collect the transitive closure of dependents and mark their edges
   // as not yet visited by RecomputeDirty.
   std::set<Node*> dependents;
@@ -658,7 +658,8 @@ bool Plan::RefreshDyndepDependents(DependencyScan* scan, const Node* node,
   return true;
 }
 
-void Plan::UnmarkDependents(const Node* node, std::set<Node*>* dependents) {
+void Plan::UnmarkDependents(const Node* node, std::set<Node*>* dependents)
+{
   for(auto const& edge : node->out_edges())
   {
     if(want_.end() == want_.find(edge))
@@ -785,10 +786,10 @@ void Builder::Cleanup() {
         // need to rebuild an output because of a modified header file
         // mentioned in a depfile, and the command touches its depfile
         // but is interrupted before it touches its output file.)
-        std::string err;
-        TimeStamp new_mtime = disk_interface_->Stat(inner->path(), &err);
+        std::error_code err;
+        TimeStamp new_mtime = disk_interface_->Stat(inner->path(), err);
         if (new_mtime == TimeStamp::max())  // Log and ignore Stat() errors.
-          Error("%s", err.c_str());
+          Error("%s", err.message().c_str());
         if (!depfile.empty() || inner->mtime() != new_mtime)
           disk_interface_->RemoveFile(inner->path());
       }
@@ -798,7 +799,7 @@ void Builder::Cleanup() {
   }
 }
 
-Node* Builder::AddTarget(std::filesystem::path const& name, std::string* err) {
+Node* Builder::AddTarget(const std::string& name, std::error_code& err) {
   if(Node* node = state_->LookupNode(name); node)
   {
     if(AddTarget(node, err))
@@ -812,12 +813,13 @@ Node* Builder::AddTarget(std::filesystem::path const& name, std::string* err) {
   }
   else
   {
-    *err = string_concat("unknown target: '", name.generic_string(), "'");
+//  *err = string_concat("unknown target: '", name.generic_string(), "'");
+    err = std::make_error_code(std::errc::invalid_argument);
     return nullptr;
   }
 }
 
-bool Builder::AddTarget(Node* node, std::string* err)
+bool Builder::AddTarget(Node* node, std::error_code& err)
 {
   if( ! scan_.RecomputeDirty(node, err))
   {
@@ -839,7 +841,7 @@ bool Builder::AlreadyUpToDate() const {
   return !plan_.more_to_do();
 }
 
-bool Builder::Build(std::string* err) {
+bool Builder::Build(std::error_code& err) {
   assert(!AlreadyUpToDate());
 
   status_->PlanHasTotalEdges(plan_.command_edge_count());
@@ -894,7 +896,7 @@ bool Builder::Build(std::string* err) {
           result.status == ExitInterrupted) {
         Cleanup();
         status_->BuildFinished();
-        *err = "interrupted by user";
+        //*err = "interrupted by user";
         return false;
       }
 
@@ -916,15 +918,25 @@ bool Builder::Build(std::string* err) {
 
     // If we get here, we cannot make any more progress.
     status_->BuildFinished();
-    if (failures_allowed == 0) {
+    if (failures_allowed == 0)
+    {
       if (config_.failures_allowed > 1)
-        *err = "subcommands failed";
+      {
+        //*err = "subcommands failed";
+      }
       else
-        *err = "subcommand failed";
-    } else if (failures_allowed < config_.failures_allowed)
-      *err = "cannot make progress due to previous errors";
+      {
+        //*err = "subcommand failed";
+      }
+    }
+    else if (failures_allowed < config_.failures_allowed)
+    {
+      //*err = "cannot make progress due to previous errors";
+    }
     else
-      *err = "stuck [this is a bug]";
+    {
+      //*err = "stuck [this is a bug]";
+    }
 
     return false;
   }
@@ -933,7 +945,7 @@ bool Builder::Build(std::string* err) {
   return true;
 }
 
-bool Builder::StartEdge(Edge* edge, std::string* err) {
+bool Builder::StartEdge(Edge* edge, std::error_code& err) {
   METRIC_RECORD("StartEdge");
   if (edge->is_phony())
     return true;
@@ -961,14 +973,14 @@ bool Builder::StartEdge(Edge* edge, std::string* err) {
 
   // start command computing and run it
   if (!command_runner_->StartCommand(edge)) {
-    *err = string_concat("command '", edge->EvaluateCommand(), "' failed.");
+    //err->assign("command '" + edge->EvaluateCommand() + "' failed.");
     return false;
   }
 
   return true;
 }
 
-bool Builder::FinishCommand(CommandRunner::Result* result, std::string* err) {
+bool Builder::FinishCommand(CommandRunner::Result* result, std::error_code& err) {
   METRIC_RECORD("FinishCommand");
 
   Edge* edge = result->edge;
@@ -982,13 +994,13 @@ bool Builder::FinishCommand(CommandRunner::Result* result, std::string* err) {
   std::string deps_type = edge->GetBinding("deps");
   const std::string deps_prefix = edge->GetBinding("msvc_deps_prefix");
   if (!deps_type.empty()) {
-    std::string extract_err;
+    std::error_code extract_err;
     if (!ExtractDeps(result, deps_type, deps_prefix, &deps_nodes,
-                     &extract_err) &&
+                     extract_err) &&
         result->success()) {
       if (!result->output.empty())
         result->output.append("\n");
-      result->output.append(extract_err);
+      result->output.append(extract_err.message());
       result->status = ExitFailure;
     }
   }
@@ -1067,12 +1079,13 @@ bool Builder::FinishCommand(CommandRunner::Result* result, std::string* err) {
   if (scan_.build_log()) {
     if (!scan_.build_log()->RecordCommand(edge, start_time, end_time,
                                           output_mtime)) {
-      *err = string_concat("Error writing to build log: ", strerror(errno));
+      //*err = std::string("Error writing to build log: ") + strerror(errno);
       return false;
     }
   }
 
-  if (!deps_type.empty() && !config_.dry_run) {
+  if (!deps_type.empty() && !config_.dry_run)
+  {
     assert(!edge->outputs_.empty() && "should have been rejected by parser");
     for(auto const& output : edge->outputs_) {
       TimeStamp deps_mtime = disk_interface_->Stat(output->path(), err);
@@ -1083,7 +1096,7 @@ bool Builder::FinishCommand(CommandRunner::Result* result, std::string* err) {
 
       if( ! scan_.deps_log()->RecordDeps(output, deps_mtime, deps_nodes))
       {
-        *err = string_concat("Error writing to deps log: ", strerror(errno));
+//        *err = string_concat("Error writing to deps log: ", strerror(errno));
         return false;
       }
     }
@@ -1095,7 +1108,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
                           const std::string& deps_type,
                           const std::string& deps_prefix,
                           std::vector<Node*>* deps_nodes,
-                          std::string* err) {
+                          std::error_code& err) {
   if (deps_type == "msvc") {
     CLParser parser;
     std::string output;
@@ -1113,7 +1126,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
   if (deps_type == "gcc") {
     std::filesystem::path const& depfile = result->edge->GetUnescapedDepfile();
     if (depfile.empty()) {
-      *err = std::string("edge with deps=gcc but no depfile makes no sense");
+      //*err = std::string("edge with deps=gcc but no depfile makes no sense");
       return false;
     }
 
@@ -1123,7 +1136,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     case DiskInterface::Okay:
       break;
     case DiskInterface::NotFound:
-      err->clear();
+      err = {};
       break;
     case DiskInterface::OtherError:
       return false;
@@ -1146,7 +1159,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
     {
       if (disk_interface_->RemoveFile(depfile) < 0)
       {
-        *err = string_concat("deleting depfile: ", strerror(errno), "\n");
+        //*err = std::string("deleting depfile: ") + strerror(errno) + std::string("\n");
         return false;
       }
     }
@@ -1159,7 +1172,7 @@ bool Builder::ExtractDeps(CommandRunner::Result* result,
   return true;
 }
 
-bool Builder::LoadDyndeps(Node* node, std::string* err) {
+bool Builder::LoadDyndeps(Node* node, std::error_code& err) {
   status_->BuildLoadDyndeps();
 
   // Load the dyndep information provided by this node.

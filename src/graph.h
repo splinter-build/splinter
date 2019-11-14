@@ -42,10 +42,10 @@ struct Node final {
   { }
 
   /// Return false on error.
-  bool Stat(DiskInterface* disk_interface, std::string* err);
+  bool Stat(DiskInterface* disk_interface, std::error_code& err);
 
   /// Return false on error.
-  bool StatIfNecessary(DiskInterface* disk_interface, std::string* err)
+  bool StatIfNecessary(DiskInterface* disk_interface, std::error_code& err)
   {
     return status_known() || Stat(disk_interface, err);
   }
@@ -216,7 +216,7 @@ struct ImplicitDepLoader final {
   /// Load implicit dependencies for \a edge.
   /// @return false on error (without filling \a err if info is just missing
   //                          or out of date).
-  bool LoadDeps(Edge* edge, std::string* err);
+  bool LoadDeps(Edge* edge, std::error_code& err);
 
   DepsLog* deps_log() const {
     return deps_log_;
@@ -225,11 +225,11 @@ struct ImplicitDepLoader final {
  private:
   /// Load implicit dependencies for \a edge from a depfile attribute.
   /// @return false on error (without filling \a err if info is just missing).
-  bool LoadDepFile(Edge* edge, std::filesystem::path const& path, std::string* err);
+  bool LoadDepFile(Edge* edge, std::filesystem::path const& path, std::error_code& err);
 
   /// Load implicit dependencies for \a edge from the DepsLog.
   /// @return false on error (without filling \a err if info is just missing).
-  bool LoadDepsFromLog(Edge* edge, std::string* err);
+  bool LoadDepsFromLog(Edge* edge, std::error_code& err);
 
   /// Preallocate \a count spaces in the input array on \a edge, returning
   /// an iterator pointing at the first new space.
@@ -264,12 +264,12 @@ struct DependencyScan final {
   /// needs to be re-run, and update outputs_ready_ and each outputs' |dirty_|
   /// state accordingly.
   /// Returns false on failure.
-  bool RecomputeDirty(Node* node, std::string* err);
+  bool RecomputeDirty(Node* node, std::error_code& err);
 
   /// Recompute whether any output of the edge is dirty, if so sets |*dirty|.
   /// Returns false on failure.
   bool RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,
-                             bool* dirty, std::string* err);
+                             bool* dirty, std::error_code& err);
 
   BuildLog* build_log() const {
     return build_log_;
@@ -286,12 +286,12 @@ struct DependencyScan final {
   /// build graph with the new information.  One overload accepts
   /// a caller-owned 'DyndepFile' object in which to store the
   /// information loaded from the dyndep file.
-  bool LoadDyndeps(Node* node, std::string* err) const;
-  bool LoadDyndeps(Node* node, DyndepFile* ddf, std::string* err) const;
+  bool LoadDyndeps(Node* node, std::error_code& err) const;
+  bool LoadDyndeps(Node* node, DyndepFile* ddf, std::error_code& err) const;
 
  private:
-  bool RecomputeDirty(Node* node, std::vector<Node*>& stack, std::string* err);
-  bool VerifyDAG(Node* node, std::vector<Node*>& stack, std::string* err);
+  bool RecomputeDirty(Node* node, std::vector<Node*>& stack, std::error_code& err);
+  bool VerifyDAG(Node* node, std::vector<Node*>& stack, std::error_code& err);
 
   /// Recompute whether a given single output should be marked dirty.
   /// Returns true if so.

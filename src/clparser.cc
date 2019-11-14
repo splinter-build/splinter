@@ -75,7 +75,7 @@ bool CLParser::FilterInputFilename(std::string line) {
 
 // static
 bool CLParser::Parse(const std::string& output, const std::string& deps_prefix,
-                     std::string* filtered_output, std::string* err) {
+                     std::string* filtered_output, std::error_code& err) {
   METRIC_RECORD("CLParser::Parse");
 
   // Loop over all lines in the output to process them.

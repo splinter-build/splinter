@@ -100,7 +100,7 @@ struct State final {
 
   void AddIn(Edge* edge, std::filesystem::path const& path);
   bool AddOut(Edge* edge, std::filesystem::path const& path);
-  bool AddDefault(std::filesystem::path const& path, std::string* error);
+  bool AddDefault(std::filesystem::path const& path, std::error_code& error);
 
   /// Reset state.  Keeps all nodes and edges, but restores them to the
   /// state where we haven't yet examined the disk for dirty state.
@@ -111,8 +111,8 @@ struct State final {
 
   /// @return the root node(s) of the graph. (Root nodes have no output edges).
   /// @param error where to write the error message if somethings went wrong.
-  std::vector<Node*> RootNodes(std::string* error) const;
-  std::vector<Node*> DefaultNodes(std::string* error) const;
+  std::vector<Node*> RootNodes(std::error_code& error) const;
+  std::vector<Node*> DefaultNodes(std::error_code& error) const;
 
   /// Mapping of path -> Node.
   using Paths = std::unordered_map<std::filesystem::path, Node*>;

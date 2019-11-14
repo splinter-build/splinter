@@ -30,7 +30,7 @@ DyndepParser::DyndepParser(State* state, FileReader* file_reader,
 }
 
 bool DyndepParser::Parse(std::filesystem::path const& filename, const std::string& input,
-                         std::string* err) {
+                         std::error_code& err) {
   lexer_.Start(filename, input);
 
   // Require a supported ninja_dyndep_version value immediately so
@@ -73,7 +73,7 @@ bool DyndepParser::Parse(std::filesystem::path const& filename, const std::strin
   return false;  // not reached
 }
 
-bool DyndepParser::ParseDyndepVersion(std::string* err) {
+bool DyndepParser::ParseDyndepVersion(std::error_code& err) {
   std::string name;
   EvalString let_value;
   if (!ParseLet(&name, &let_value, err))
@@ -91,7 +91,7 @@ bool DyndepParser::ParseDyndepVersion(std::string* err) {
   return true;
 }
 
-bool DyndepParser::ParseLet(std::string* key, EvalString* value, std::string* err) {
+bool DyndepParser::ParseLet(std::string* key, EvalString* value, std::error_code& err) {
   if (!lexer_.ReadIdent(key))
     return lexer_.Error("expected variable name", err);
   if (!ExpectToken(Lexer::EQUALS, err))
@@ -101,7 +101,7 @@ bool DyndepParser::ParseLet(std::string* key, EvalString* value, std::string* er
   return true;
 }
 
-bool DyndepParser::ParseEdge(std::string* err) {
+bool DyndepParser::ParseEdge(std::error_code& err) {
   // Parse one explicit output.  We expect it to already have an edge.
   // We will record its dynamically-discovered dependency information.
   Dyndeps* dyndeps = nullptr;
@@ -140,7 +140,7 @@ bool DyndepParser::ParseEdge(std::string* err) {
     for (;;) {
       EvalString out;
       if (!lexer_.ReadPath(&out, err))
-        return err;
+        return !!err;
       if (out.empty())
         break;
       outs.push_back(out);
@@ -169,7 +169,7 @@ bool DyndepParser::ParseEdge(std::string* err) {
     for (;;) {
       EvalString in;
       if (!lexer_.ReadPath(&in, err))
-        return err;
+        return !!err;
       if (in.empty())
         break;
       ins.push_back(in);

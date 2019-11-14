@@ -18,6 +18,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <system_error>
 
 struct DiskInterface;
 struct Edge;
@@ -49,13 +50,13 @@ struct DyndepLoader {
   /// build graph with the new information.  One overload accepts
   /// a caller-owned 'DyndepFile' object in which to store the
   /// information loaded from the dyndep file.
-  bool LoadDyndeps(Node* node, std::string* err) const;
-  bool LoadDyndeps(Node* node, DyndepFile* ddf, std::string* err) const;
+  bool LoadDyndeps(Node* node, std::error_code& err) const;
+  bool LoadDyndeps(Node* node, DyndepFile* ddf, std::error_code& err) const;
 
  private:
-  bool LoadDyndepFile(Node* file, DyndepFile* ddf, std::string* err) const;
+  bool LoadDyndepFile(Node* file, DyndepFile* ddf, std::error_code& err) const;
 
-  bool UpdateEdge(Edge* edge, Dyndeps const* dyndeps, std::string* err) const;
+  bool UpdateEdge(Edge* edge, Dyndeps const* dyndeps, std::error_code& err) const;
 
   State* state_;
   DiskInterface* disk_interface_;

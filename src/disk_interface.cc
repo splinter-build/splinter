@@ -33,26 +33,16 @@ bool RealDiskInterface::MakeDirs(std::filesystem::path const& path)
 
 // RealDiskInterface -----------------------------------------------------------
 
-TimeStamp RealDiskInterface::Stat(std::filesystem::path const& path, std::string* err) const
+TimeStamp RealDiskInterface::Stat(std::filesystem::path const& path, std::error_code& err) const
 {
   METRIC_RECORD("node stat");
 
   if( ! use_cache_)
   {
-    std::error_code ec;
-    auto time = std::filesystem::last_write_time(path, ec);
-    if(ec)
+    auto time = std::filesystem::last_write_time(path, err);
+    if(err)
     {
-      if(   (ec == std::make_error_code(std::errc::no_such_file_or_directory))
-         || (ec == std::make_error_code(std::errc::not_a_directory)))
-      {
-        return TimeStamp::min();
-      }
-      else
-      {
-        *err = ec.message();
-        return TimeStamp::max();
-      }
+      return TimeStamp::max();
     }
     else
     {
@@ -79,11 +69,10 @@ TimeStamp RealDiskInterface::Stat(std::filesystem::path const& path, std::string
 #ifdef _WIN32
       std::transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
 #endif
-      std::error_code ec;
-      auto const& [it2, success] = ci->second.emplace(std::move(lowername), entry.last_write_time(ec));
-      if( ! success || ec)
+
+      auto const& [it, success] = ci->second.emplace(std::move(lowername), entry.last_write_time(err));
+      if( ! success || err)
       {
-          *err = ec.message();
           cache_.erase(ci);
           // TODO: If we're going to abort, shouldn't we also remove all of the previously inserted entries?
           return TimeStamp::max();
@@ -145,7 +134,7 @@ bool RealDiskInterface::MakeDir(std::filesystem::path const& path)
 
 FileReader::Status RealDiskInterface::ReadFile(std::filesystem::path const& path,
                                                std::string* contents,
-                                               std::string* err)
+                                               std::error_code& err)
 {
   // Need to call the version of this from util.cc
   // Bad naming that there's an overlap.

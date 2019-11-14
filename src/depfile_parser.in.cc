@@ -17,11 +17,6 @@
 
 #include <algorithm>
 
-DepfileParser::DepfileParser(DepfileParserOptions options)
-  : options_(options)
-{
-}
-
 // A note on backslashes in Makefiles, from reading the docs:
 // Backslash-newline is the line continuation character.
 // Backslash-# escapes a # (otherwise meaningful as a comment start).
@@ -42,7 +37,7 @@ DepfileParser::DepfileParser(DepfileParserOptions options)
 //
 // If anyone actually has depfiles that rely on the more complicated
 // behavior we can adjust this.
-bool DepfileParser::Parse(std::string* content, std::string* err) {
+bool DepfileParser::Parse(std::string* content, std::error_code& err) {
   // in: current parser input point.
   // end: end of input.
   // parsing_targets: whether we are parsing targets or dependencies.
@@ -175,7 +170,7 @@ bool DepfileParser::Parse(std::string* content, std::string* err) {
       if (pos == ins_.end()) {
         if (is_dependency) {
           if (poisoned_input) {
-            *err = "inputs may not also have inputs";
+            err = std::make_error_code(std::errc::invalid_argument);
             return false;
           }
           // New input.
@@ -198,7 +193,7 @@ bool DepfileParser::Parse(std::string* content, std::string* err) {
     }
   }
   if (!have_target) {
-    *err = "expected ':' in depfile";
+    err = std::make_error_code(std::errc::invalid_argument);
     return false;
   }
   return true;

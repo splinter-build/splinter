@@ -22,15 +22,14 @@ struct IncludesNormalize final {
   IncludesNormalize(const std::string & relative_to);
 
   // Internal utilities made available for testing, maybe useful otherwise.
-  static std::string AbsPath(std::string_view s, std::string* err);
+  static std::string AbsPath(std::string_view s, std::error_code& err);
   static std::string Relativize(std::string_view                     path,
                                 const std::vector<std::string_view>& start_list,
                                 std::string*                         err);
 
   /// Normalize by fixing slashes style, fixing redundant .. and . and makes the
   /// path |input| relative to |this->relative_to_| and store to |result|.
-  bool Normalize(const std::string& input, std::string* result,
-                 std::string* err) const;
+  bool Normalize(const std::string& input, std::string* result, std::error_code& err) const;
 
  private:
   std::string relative_to_;
