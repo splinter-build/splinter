@@ -54,6 +54,7 @@
 #include "edit_distance.h"
 #include "metrics.h"
 #include "string_piece_util.h"
+#include "string_concat.h"
 
 static inline bool IsKnownShellSafeCharacter(char ch) {
   if ('A' <= ch && ch <= 'Z') return true;

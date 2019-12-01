@@ -14,7 +14,7 @@
 
 #include "disk_interface.h"
 
-#include "util.h"
+#include "metrics.h"
 
 // DiskInterface ---------------------------------------------------------------
 
@@ -71,39 +71,10 @@ TimeStamp RealDiskInterface::Stat(std::filesystem::path const& path, std::string
       }
     }
   }
-<<<<<<< HEAD
-  DirCache::iterator di = ci->second.find(base);
-  return di != ci->second.end() ? di->second : 0;
-#else
-  struct stat st;
-  if (stat(path.c_str(), &st) < 0) {
-    if (errno == ENOENT || errno == ENOTDIR)
-      return 0;
-    *err = string_concat("stat(", path, "): ", strerror(errno));
-    return -1;
-  }
-  // Some users (Flatpak) set mtime to 0, this should be harmless
-  // and avoids conflicting with our return value of 0 meaning
-  // that it doesn't exist.
-  if (st.st_mtime == 0)
-    return 1;
-#if defined(_AIX)
-  return (int64_t)st.st_mtime * 1000000000LL + st.st_mtime_n;
-#elif defined(__APPLE__)
-  return ((int64_t)st.st_mtimespec.tv_sec * 1000000000LL +
-          st.st_mtimespec.tv_nsec);
-#elif defined(st_mtime) // A macro, so we're likely on modern POSIX.
-  return (int64_t)st.st_mtim.tv_sec * 1000000000LL + st.st_mtim.tv_nsec;
-#else
-  return (int64_t)st.st_mtime * 1000000000LL + st.st_mtimensec;
-#endif
-#endif
-=======
 
   DirCache const& cache = ci->second;
   DirCache::const_iterator di = cache.find(path.filename());
   return di != cache.end() ? di->second : TimeStamp::min();
->>>>>>> 1fd8142... Replace low level file operations with std::filesystem, replace TimeStamp with std::filesystem::file_time_type
 }
 
 bool RealDiskInterface::WriteFile(std::filesystem::path const& path, std::string_view const contents)

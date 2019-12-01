@@ -17,15 +17,14 @@
 
 #ifdef _WIN32
 #include "win32port.h"
-#else
-#include <stdint.h>
 #endif
 
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <filesystem>
 #include <string>
 #include <vector>
-#include <filesystem>
-
-#include <stdio.h>
 
 #ifdef _MSC_VER
 #define NORETURN __declspec(noreturn)

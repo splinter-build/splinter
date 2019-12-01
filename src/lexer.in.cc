@@ -14,8 +14,6 @@
 
 #include "lexer.h"
 
-#include <stdio.h>
-
 #include "eval_env.h"
 #include "util.h"
 
@@ -62,7 +60,7 @@ Lexer::Lexer(const char* input) {
   Start("input", input);
 }
 
-void Lexer::Start(std::filesysem::path filename, std::string_view input) {
+void Lexer::Start(std::filesystem::path filename, std::string_view input) {
   filename_ = std::move(filename);
   input_ = input;
   ofs_ = input_.data();
