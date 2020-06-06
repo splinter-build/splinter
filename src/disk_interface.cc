@@ -31,6 +31,8 @@
 #include "metrics.h"
 #include "util.h"
 
+using namespace std;
+
 namespace {
 
 string DirName(const string& path) {
